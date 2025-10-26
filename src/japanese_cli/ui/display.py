@@ -13,7 +13,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from ..models import Vocabulary, Kanji, Review
+from ..models import Vocabulary, Kanji, Review, GrammarPoint, Example
 from .furigana import render_furigana, format_kanji_with_readings
 
 
@@ -955,3 +955,131 @@ def format_relative_date(target_date: date) -> str:
         return f"In {delta_days} days"
     else:
         return f"{abs(delta_days)} days ago"
+
+
+def format_grammar_table(grammar_list: list[GrammarPoint]) -> Table:
+    """
+    Create a Rich table displaying grammar points list.
+
+    Args:
+        grammar_list: List of GrammarPoint objects
+
+    Returns:
+        Rich Table object ready for console.print()
+
+    Example:
+        >>> grammar_list = list_grammar(jlpt_level='n5', limit=10)
+        >>> table = format_grammar_table(grammar_list)
+        >>> console.print(table)
+    """
+    table = Table(title="📖 Grammar Points", show_header=True, header_style="bold magenta")
+
+    # Columns
+    table.add_column("ID", style="dim", width=6)
+    table.add_column("Title", style="bold cyan", width=30)
+    table.add_column("Structure", style="yellow", width=25)
+    table.add_column("JLPT", justify="center", width=6)
+    table.add_column("Examples", justify="center", width=10)
+
+    # Rows
+    for grammar in grammar_list:
+        # Get JLPT level color
+        jlpt_color = JLPT_COLORS.get(grammar.jlpt_level or "", "white")
+        jlpt_display = grammar.jlpt_level.upper() if grammar.jlpt_level else "-"
+
+        # Structure (truncate if too long)
+        structure_display = grammar.structure if grammar.structure else "-"
+        if len(structure_display) > 25:
+            structure_display = structure_display[:22] + "..."
+
+        # Example count
+        example_count = len(grammar.examples) if grammar.examples else 0
+
+        row = [
+            str(grammar.id),
+            grammar.title,
+            structure_display,
+            f"[{jlpt_color}]{jlpt_display}[/{jlpt_color}]",
+            str(example_count),
+        ]
+
+        table.add_row(*row)
+
+    return table
+
+
+def format_grammar_panel(grammar: GrammarPoint) -> Panel:
+    """
+    Create a Rich panel with detailed grammar point information.
+
+    Args:
+        grammar: GrammarPoint object
+
+    Returns:
+        Rich Panel with all grammar details
+
+    Example:
+        >>> grammar = get_grammar_by_id(1)
+        >>> panel = format_grammar_panel(grammar)
+        >>> console.print(panel)
+    """
+    content_lines = []
+
+    # Title (bold and prominent)
+    content_lines.append(f"[bold bright_cyan]{grammar.title}[/bold bright_cyan]")
+    content_lines.append("")
+
+    # Structure
+    if grammar.structure:
+        content_lines.append(f"[bold]Structure:[/bold] [yellow]{grammar.structure}[/yellow]")
+        content_lines.append("")
+
+    # Explanation
+    content_lines.append("[bold]Explanation:[/bold]")
+    content_lines.append(f"[green]{grammar.explanation}[/green]")
+    content_lines.append("")
+
+    # JLPT level
+    if grammar.jlpt_level:
+        jlpt_color = JLPT_COLORS.get(grammar.jlpt_level, "white")
+        content_lines.append(f"[dim]JLPT level:[/dim] [{jlpt_color}]{grammar.jlpt_level.upper()}[/{jlpt_color}]")
+        content_lines.append("")
+
+    # Examples
+    if grammar.examples:
+        content_lines.append(f"[bold]Examples ({len(grammar.examples)}):[/bold]")
+        for idx, example in enumerate(grammar.examples, 1):
+            content_lines.append(f"\n[dim]{idx}.[/dim]")
+            # Japanese sentence (with furigana if possible)
+            content_lines.append(f"  [bright_yellow]{example.jp}[/bright_yellow]")
+            # Vietnamese translation
+            content_lines.append(f"  [green]{example.vi}[/green]")
+            # English translation (if available)
+            if example.en:
+                content_lines.append(f"  [dim]{example.en}[/dim]")
+        content_lines.append("")
+
+    # Related grammar
+    if grammar.related_grammar:
+        related_ids = ", ".join(str(gid) for gid in grammar.related_grammar)
+        content_lines.append(f"[dim]Related grammar:[/dim] {related_ids}")
+        content_lines.append("")
+
+    # Notes
+    if grammar.notes:
+        content_lines.append(f"[dim]Notes:[/dim]")
+        content_lines.append(f"{grammar.notes}")
+        content_lines.append("")
+
+    # Timestamps
+    content_lines.append(f"[dim]Created:[/dim] {grammar.created_at.strftime('%Y-%m-%d %H:%M')}")
+    content_lines.append(f"[dim]Updated:[/dim] {grammar.updated_at.strftime('%Y-%m-%d %H:%M')}")
+
+    # Join all lines and create panel
+    content = "\n".join(content_lines)
+    return Panel(
+        content,
+        title=f"📖 Grammar Point #{grammar.id}",
+        border_style="cyan",
+        padding=(1, 2)
+    )

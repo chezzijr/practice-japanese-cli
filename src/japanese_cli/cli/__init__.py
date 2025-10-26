@@ -5,9 +5,9 @@ Contains Typer command groups for different functionality:
 - import_data: Data import commands
 - flashcard: Flashcard management
 - progress: Progress tracking and statistics
-- grammar: Grammar points (future)
+- grammar: Grammar point management
 """
 
-from . import import_data, flashcard, progress
+from . import import_data, flashcard, progress, grammar
 
-__all__ = ["import_data", "flashcard", "progress"]
+__all__ = ["import_data", "flashcard", "progress", "grammar"]

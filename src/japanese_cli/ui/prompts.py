@@ -13,7 +13,7 @@ from rich.console import Console
 from rich.prompt import Confirm, IntPrompt, Prompt
 from rich.table import Table
 
-from ..models import Vocabulary, Kanji
+from ..models import Vocabulary, Kanji, GrammarPoint, Example
 from ..database import search_vocabulary_by_reading, search_kanji_by_reading
 from .japanese_utils import is_romaji, romaji_to_hiragana, contains_japanese
 
@@ -667,4 +667,220 @@ def select_from_kanji_matches(matches: list[dict], search_term: str) -> Optional
         return matches[int(choice) - 1]
     except KeyboardInterrupt:
         console.print("\n[yellow]Selection cancelled[/yellow]")
+        return None
+
+
+def prompt_example_data(example_num: int = 1, existing: Optional[Example] = None) -> Optional[dict]:
+    """
+    Interactively collect a single grammar example.
+
+    Prompts for Japanese sentence, Vietnamese translation, and optional English translation.
+
+    Args:
+        example_num: Example number (for display purposes)
+        existing: Optional existing Example object for editing
+
+    Returns:
+        Dictionary with example data (jp, vi, en), or None if cancelled
+
+    Example:
+        >>> example = prompt_example_data(1)
+        >>> if example:
+        ...     examples.append(example)
+    """
+    console.print(f"\n[bold]Example {example_num}[/bold]")
+
+    try:
+        # Japanese sentence (required)
+        jp = Prompt.ask(
+            "  Japanese sentence",
+            default=existing.jp if existing else None
+        )
+
+        if not jp or not jp.strip():
+            console.print("[red]Japanese sentence cannot be empty[/red]")
+            return None
+
+        # Vietnamese translation (required)
+        vi = Prompt.ask(
+            "  Vietnamese translation",
+            default=existing.vi if existing else None
+        )
+
+        if not vi or not vi.strip():
+            console.print("[red]Vietnamese translation cannot be empty[/red]")
+            return None
+
+        # English translation (optional)
+        en = Prompt.ask(
+            "  English translation [dim](optional)[/dim]",
+            default=existing.en if existing and existing.en else "",
+            show_default=False
+        )
+
+        # Build example dict
+        example_data = {
+            "jp": jp.strip(),
+            "vi": vi.strip(),
+        }
+
+        if en and en.strip():
+            example_data["en"] = en.strip()
+
+        return example_data
+
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Example cancelled[/yellow]")
+        return None
+
+
+def prompt_grammar_data(existing: Optional[GrammarPoint] = None) -> Optional[dict]:
+    """
+    Interactively collect grammar point data from user.
+
+    Prompts for all required and optional fields for a grammar entry.
+    If existing grammar point is provided, fields are pre-filled with current values.
+
+    Args:
+        existing: Optional existing GrammarPoint object for editing
+
+    Returns:
+        Dictionary with grammar point data, or None if user cancels
+
+    Example:
+        >>> data = prompt_grammar_data()
+        >>> if data:
+        ...     grammar_id = add_grammar(**data)
+    """
+    console.print("\n[bold cyan]Adding Grammar Point[/bold cyan]")
+    console.print("[dim]Press Ctrl+C to cancel at any time[/dim]\n")
+
+    try:
+        # Title (required)
+        title = Prompt.ask(
+            "[bold]Grammar title[/bold] (e.g., 'は (wa) particle')",
+            default=existing.title if existing else None
+        )
+
+        if not title or not title.strip():
+            console.print("[red]Title cannot be empty[/red]")
+            return None
+
+        # Structure (optional)
+        structure = Prompt.ask(
+            "Grammar structure [dim](e.g., 'Noun + は + Predicate', optional)[/dim]",
+            default=existing.structure if existing and existing.structure else "",
+            show_default=False
+        )
+
+        # Explanation (required)
+        console.print("\n[dim]Enter explanation (press Enter when done):[/dim]")
+        explanation = Prompt.ask(
+            "[bold]Explanation[/bold] (Vietnamese/English)",
+            default=existing.explanation if existing else None
+        )
+
+        if not explanation or not explanation.strip():
+            console.print("[red]Explanation cannot be empty[/red]")
+            return None
+
+        # JLPT level (optional)
+        default_jlpt = existing.jlpt_level if existing else ""
+        jlpt_level_input = Prompt.ask(
+            "JLPT level [dim](n5/n4/n3/n2/n1, optional)[/dim]",
+            choices=["n5", "n4", "n3", "n2", "n1", ""],
+            default=default_jlpt,
+            show_default=bool(default_jlpt),
+            show_choices=True
+        )
+        jlpt_level = jlpt_level_input or None
+
+        # Examples (required, minimum 1, suggest 3)
+        console.print("\n[bold cyan]Examples[/bold cyan]")
+        console.print("[dim]Please provide at least 1 example (3 recommended)[/dim]")
+
+        examples = []
+        example_num = 1
+
+        # If editing, pre-fill existing examples
+        if existing and existing.examples:
+            console.print(f"\n[dim]Existing examples: {len(existing.examples)}[/dim]")
+            if confirm_action("Keep existing examples?", default=True):
+                examples = [ex.to_dict() if isinstance(ex, Example) else ex for ex in existing.examples]
+                example_num = len(examples) + 1
+            else:
+                examples = []
+
+        # Collect new examples
+        while True:
+            example_data = prompt_example_data(example_num, None)
+
+            if example_data:
+                examples.append(example_data)
+                example_num += 1
+
+                # After first example, ask if user wants to add more
+                if len(examples) >= 1:
+                    if not confirm_action(f"Add another example? (currently {len(examples)})", default=True):
+                        break
+            else:
+                # User cancelled, ask if they want to continue
+                if len(examples) >= 1:
+                    if confirm_action(f"Continue with {len(examples)} example(s)?", default=True):
+                        break
+                    # Otherwise, try again
+                else:
+                    console.print("[yellow]At least one example is required[/yellow]")
+                    # Try again
+
+        # Ensure at least one example
+        if not examples or len(examples) == 0:
+            console.print("[red]Grammar point must have at least one example[/red]")
+            return None
+
+        # Related grammar (optional)
+        related_grammar_str = Prompt.ask(
+            "Related grammar IDs [dim](comma-separated, optional)[/dim]",
+            default=", ".join(map(str, existing.related_grammar)) if existing and existing.related_grammar else "",
+            show_default=False
+        )
+        related_grammar = []
+        if related_grammar_str and related_grammar_str.strip():
+            try:
+                related_grammar = [int(gid.strip()) for gid in related_grammar_str.split(",") if gid.strip()]
+            except ValueError:
+                console.print("[yellow]Warning: Invalid grammar IDs, ignoring related grammar[/yellow]")
+                related_grammar = []
+
+        # Notes (optional)
+        notes = Prompt.ask(
+            "Notes [dim](optional)[/dim]",
+            default=existing.notes if existing and existing.notes else "",
+            show_default=False
+        )
+
+        # Validate data using Pydantic model
+        try:
+            grammar_data = {
+                "title": title.strip(),
+                "structure": structure.strip() if structure and structure.strip() else None,
+                "explanation": explanation.strip(),
+                "jlpt_level": jlpt_level,
+                "examples": examples,
+                "related_grammar": related_grammar,
+                "notes": notes.strip() if notes and notes.strip() else None,
+            }
+
+            # Validate with Pydantic (create temporary model to check)
+            GrammarPoint(**grammar_data)
+
+            # Return data for database insertion
+            return grammar_data
+
+        except ValidationError as e:
+            console.print(f"\n[red]Validation error:[/red] {e}")
+            return None
+
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Cancelled[/yellow]")
         return None
