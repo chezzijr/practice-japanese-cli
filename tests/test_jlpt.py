@@ -256,8 +256,7 @@ def test_repr(temp_jlpt_dir):
     repr_str = repr(mapper)
 
     assert "JLPTLevelMapper" in repr_str
-    assert "n5_vocab=5" in repr_str
-    assert "n5_kanji=8" in repr_str
+    assert "n5(vocab=5, kanji=8)" in repr_str
 
 
 # ============================================================================

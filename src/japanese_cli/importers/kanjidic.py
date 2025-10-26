@@ -205,26 +205,38 @@ class KanjidicImporter:
         finally:
             file_handle.close()
 
-    def import_n5_kanji(
+    def import_kanji(
         self,
+        level: str = "n5",
         kanjidic_path: Optional[Path] = None,
         download_if_missing: bool = True,
     ) -> KanjiImportStats:
         """
-        Import N5 kanji from KANJIDIC2.
+        Import kanji for a specific JLPT level from KANJIDIC2.
 
         Args:
+            level: JLPT level to import (n1, n2, n3, n4, or n5)
             kanjidic_path: Path to KANJIDIC2 file (downloads if None)
             download_if_missing: Download file if not found
 
         Returns:
             KanjiImportStats: Statistics about the import operation
 
+        Raises:
+            ValueError: If invalid JLPT level specified
+
         Example:
             >>> importer = KanjidicImporter()
-            >>> stats = importer.import_n5_kanji()
-            >>> print(f"Imported {stats.imported} kanji")
+            >>> stats = importer.import_kanji("n5")
+            >>> print(f"Imported {stats.imported} N5 kanji")
+            >>> stats = importer.import_kanji("n4")
+            >>> print(f"Imported {stats.imported} N4 kanji")
         """
+        # Validate level
+        valid_levels = {"n1", "n2", "n3", "n4", "n5"}
+        if level not in valid_levels:
+            raise ValueError(f"Invalid JLPT level: {level}. Valid levels: {valid_levels}")
+
         stats = KanjiImportStats()
 
         # Download if path not provided
@@ -235,7 +247,7 @@ class KanjidicImporter:
             elif not kanjidic_path.exists():
                 raise FileNotFoundError(f"KANJIDIC2 file not found: {kanjidic_path}")
 
-        self.console.print("\nImporting N5 kanji from KANJIDIC2...", style="bold blue")
+        self.console.print(f"\nImporting {level.upper()} kanji from KANJIDIC2...", style="bold blue")
 
         # Parse and import with progress bar
         with Progress(
@@ -250,8 +262,8 @@ class KanjidicImporter:
             for kanji_data in self.parse_kanjidic(kanjidic_path):
                 character = kanji_data['character']
 
-                # Filter by N5 level
-                if not self.jlpt_mapper.is_n5_kanji(character):
+                # Filter by specified JLPT level
+                if not self.jlpt_mapper.is_kanji_at_level(character, level):
                     stats.filtered += 1
                     progress.update(task, advance=1)
                     continue
@@ -274,7 +286,7 @@ class KanjidicImporter:
                         kun_readings=kanji_data['kun_readings'],
                         meanings={'en': kanji_data['meanings']},
                         vietnamese_reading=None,  # Not available in KANJIDIC2
-                        jlpt_level='n5',
+                        jlpt_level=level,  # Use the specified level
                         stroke_count=kanji_data['stroke_count'],
                         radical=kanji_data['radical'],
                         notes=None,
@@ -296,8 +308,36 @@ class KanjidicImporter:
         self.console.print(f"  Imported: {stats.imported}")
         self.console.print(f"  Updated: {stats.updated}")
         self.console.print(f"  Skipped (duplicates): {stats.skipped}")
-        self.console.print(f"  Filtered (non-N5): {stats.filtered}")
+        self.console.print(f"  Filtered (non-{level.upper()}): {stats.filtered}")
         if stats.errors > 0:
             self.console.print(f"  Errors: {stats.errors}", style="red")
 
         return stats
+
+    def import_n5_kanji(
+        self,
+        kanjidic_path: Optional[Path] = None,
+        download_if_missing: bool = True,
+    ) -> KanjiImportStats:
+        """
+        Import N5 kanji from KANJIDIC2.
+
+        Backward compatibility wrapper for import_kanji(level="n5").
+
+        Args:
+            kanjidic_path: Path to KANJIDIC2 file (downloads if None)
+            download_if_missing: Download file if not found
+
+        Returns:
+            KanjiImportStats: Statistics about the import operation
+
+        Example:
+            >>> importer = KanjidicImporter()
+            >>> stats = importer.import_n5_kanji()
+            >>> print(f"Imported {stats.imported} kanji")
+        """
+        return self.import_kanji(
+            level="n5",
+            kanjidic_path=kanjidic_path,
+            download_if_missing=download_if_missing
+        )

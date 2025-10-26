@@ -201,26 +201,38 @@ class JMdictImporter:
         finally:
             file_handle.close()
 
-    def import_n5_vocabulary(
+    def import_vocabulary(
         self,
+        level: str = "n5",
         jmdict_path: Optional[Path] = None,
         download_if_missing: bool = True,
     ) -> ImportStats:
         """
-        Import N5 vocabulary from JMdict.
+        Import vocabulary for a specific JLPT level from JMdict.
 
         Args:
+            level: JLPT level to import (n1, n2, n3, n4, or n5)
             jmdict_path: Path to JMdict file (downloads if None)
             download_if_missing: Download file if not found
 
         Returns:
             ImportStats: Statistics about the import operation
 
+        Raises:
+            ValueError: If invalid JLPT level specified
+
         Example:
             >>> importer = JMdictImporter()
-            >>> stats = importer.import_n5_vocabulary()
+            >>> stats = importer.import_vocabulary("n5")
             >>> print(f"Imported {stats.imported} words")
+            >>> stats = importer.import_vocabulary("n4")
+            >>> print(f"Imported {stats.imported} N4 words")
         """
+        # Validate level
+        valid_levels = {"n1", "n2", "n3", "n4", "n5"}
+        if level not in valid_levels:
+            raise ValueError(f"Invalid JLPT level: {level}. Valid levels: {valid_levels}")
+
         stats = ImportStats()
 
         # Download if path not provided
@@ -231,7 +243,7 @@ class JMdictImporter:
             elif not jmdict_path.exists():
                 raise FileNotFoundError(f"JMdict file not found: {jmdict_path}")
 
-        self.console.print("\nImporting N5 vocabulary from JMdict...", style="bold blue")
+        self.console.print(f"\nImporting {level.upper()} vocabulary from JMdict...", style="bold blue")
 
         # Parse and import with progress bar
         with Progress(
@@ -247,8 +259,8 @@ class JMdictImporter:
                 word = entry_data['word']
                 reading = entry_data['reading']
 
-                # Filter by N5 level
-                if not self.jlpt_mapper.is_n5_vocab(word, reading):
+                # Filter by specified JLPT level
+                if not self.jlpt_mapper.is_vocab_at_level(word, reading, level):
                     stats.filtered += 1
                     progress.update(task, advance=1)
                     continue
@@ -282,7 +294,7 @@ class JMdictImporter:
                         reading=reading,
                         meanings={'en': entry_data['meanings']},
                         vietnamese_reading=None,  # Not available in JMdict
-                        jlpt_level='n5',
+                        jlpt_level=level,  # Use the specified level
                         part_of_speech=entry_data['part_of_speech'],
                         tags=[],
                         notes=None,
@@ -304,8 +316,36 @@ class JMdictImporter:
         self.console.print(f"  Imported: {stats.imported}")
         self.console.print(f"  Updated: {stats.updated}")
         self.console.print(f"  Skipped (duplicates): {stats.skipped}")
-        self.console.print(f"  Filtered (non-N5): {stats.filtered}")
+        self.console.print(f"  Filtered (non-{level.upper()}): {stats.filtered}")
         if stats.errors > 0:
             self.console.print(f"  Errors: {stats.errors}", style="red")
 
         return stats
+
+    def import_n5_vocabulary(
+        self,
+        jmdict_path: Optional[Path] = None,
+        download_if_missing: bool = True,
+    ) -> ImportStats:
+        """
+        Import N5 vocabulary from JMdict.
+
+        Backward compatibility wrapper for import_vocabulary(level="n5").
+
+        Args:
+            jmdict_path: Path to JMdict file (downloads if None)
+            download_if_missing: Download file if not found
+
+        Returns:
+            ImportStats: Statistics about the import operation
+
+        Example:
+            >>> importer = JMdictImporter()
+            >>> stats = importer.import_n5_vocabulary()
+            >>> print(f"Imported {stats.imported} words")
+        """
+        return self.import_vocabulary(
+            level="n5",
+            jmdict_path=jmdict_path,
+            download_if_missing=download_if_missing
+        )

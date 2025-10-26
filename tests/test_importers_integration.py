@@ -163,3 +163,184 @@ def test_kanjidic_parser_yields_correct_structure(sample_xml_dir, jlpt_data_dir)
     assert 'meanings' in entry
     assert isinstance(entry['meanings'], list)
     assert len(entry['meanings']) > 0
+
+
+# ============================================================================
+# Multi-level Import Tests (N1-N5)
+# ============================================================================
+
+@pytest.mark.parametrize("level", ["n1", "n2", "n3", "n4", "n5"])
+def test_jmdict_import_vocabulary_all_levels(clean_db, sample_xml_dir, jlpt_data_dir, level):
+    """Test that import_vocabulary works for all JLPT levels."""
+    sample_jmdict = sample_xml_dir / "sample_jmdict.xml"
+
+    # Create mapper with specific level
+    mapper = JLPTLevelMapper(data_dir=jlpt_data_dir, levels={level})
+    importer = JMdictImporter(jlpt_mapper=mapper, db_path=clean_db)
+
+    # Import vocabulary for this level
+    stats = importer.import_vocabulary(
+        level=level,
+        jmdict_path=sample_jmdict,
+        download_if_missing=False
+    )
+
+    # Should process entries (may import 0 if no sample matches this level)
+    assert stats.imported + stats.filtered + stats.skipped > 0
+
+    # Verify any imported vocab has correct JLPT level
+    vocab_list = list_vocabulary(jlpt_level=level, db_path=clean_db)
+    for vocab in vocab_list:
+        assert vocab['jlpt_level'] == level
+
+
+@pytest.mark.parametrize("level", ["n1", "n2", "n3", "n4", "n5"])
+def test_kanjidic_import_kanji_all_levels(clean_db, sample_xml_dir, jlpt_data_dir, level):
+    """Test that import_kanji works for all JLPT levels."""
+    sample_kanjidic = sample_xml_dir / "sample_kanjidic.xml"
+
+    # Create mapper with specific level
+    mapper = JLPTLevelMapper(data_dir=jlpt_data_dir, levels={level})
+    importer = KanjidicImporter(jlpt_mapper=mapper, db_path=clean_db)
+
+    # Import kanji for this level
+    stats = importer.import_kanji(
+        level=level,
+        kanjidic_path=sample_kanjidic,
+        download_if_missing=False
+    )
+
+    # Should process entries (may import 0 if no sample matches this level)
+    assert stats.imported + stats.filtered + stats.skipped > 0
+
+    # Verify any imported kanji has correct JLPT level
+    kanji_list = list_kanji(jlpt_level=level, db_path=clean_db)
+    for kanji in kanji_list:
+        assert kanji['jlpt_level'] == level
+
+
+def test_jmdict_import_invalid_level(clean_db, sample_xml_dir, jlpt_data_dir):
+    """Test that import_vocabulary raises error for invalid level."""
+    sample_jmdict = sample_xml_dir / "sample_jmdict.xml"
+
+    mapper = JLPTLevelMapper(data_dir=jlpt_data_dir)
+    importer = JMdictImporter(jlpt_mapper=mapper, db_path=clean_db)
+
+    # Should raise ValueError for invalid level
+    with pytest.raises(ValueError, match="Invalid JLPT level"):
+        importer.import_vocabulary(
+            level="n6",  # Invalid
+            jmdict_path=sample_jmdict,
+            download_if_missing=False
+        )
+
+
+def test_kanjidic_import_invalid_level(clean_db, sample_xml_dir, jlpt_data_dir):
+    """Test that import_kanji raises error for invalid level."""
+    sample_kanjidic = sample_xml_dir / "sample_kanjidic.xml"
+
+    mapper = JLPTLevelMapper(data_dir=jlpt_data_dir)
+    importer = KanjidicImporter(jlpt_mapper=mapper, db_path=clean_db)
+
+    # Should raise ValueError for invalid level
+    with pytest.raises(ValueError, match="Invalid JLPT level"):
+        importer.import_kanji(
+            level="invalid",
+            kanjidic_path=sample_kanjidic,
+            download_if_missing=False
+        )
+
+
+def test_jlpt_mapper_lazy_loading(jlpt_data_dir):
+    """Test that JLPTLevelMapper lazy-loads levels as needed."""
+    # Start with only N5 loaded
+    mapper = JLPTLevelMapper(data_dir=jlpt_data_dir, levels={"n5"})
+
+    # N5 should be loaded
+    assert "n5" in mapper.vocab_sets
+    assert "n5" in mapper.kanji_sets
+    assert len(mapper.vocab_sets["n5"]) > 0
+    assert len(mapper.kanji_sets["n5"]) > 0
+
+    # N4 should not be loaded yet
+    assert "n4" not in mapper.vocab_sets
+    assert "n4" not in mapper.kanji_sets
+
+    # Access N4 - should trigger lazy loading
+    is_n4 = mapper.is_vocab_at_level("難しい", "むずかしい", "n4")
+
+    # N4 should now be loaded
+    assert "n4" in mapper.vocab_sets
+    assert "n4" in mapper.kanji_sets
+    assert len(mapper.vocab_sets["n4"]) > 0
+    assert len(mapper.kanji_sets["n4"]) > 0
+
+
+def test_backward_compatibility_methods(clean_db, sample_xml_dir, jlpt_data_dir):
+    """Test that old N5-specific methods still work (backward compatibility)."""
+    sample_jmdict = sample_xml_dir / "sample_jmdict.xml"
+    sample_kanjidic = sample_xml_dir / "sample_kanjidic.xml"
+
+    # Test JMdictImporter.import_n5_vocabulary
+    mapper = JLPTLevelMapper(data_dir=jlpt_data_dir)
+    vocab_importer = JMdictImporter(jlpt_mapper=mapper, db_path=clean_db)
+
+    stats = vocab_importer.import_n5_vocabulary(
+        jmdict_path=sample_jmdict,
+        download_if_missing=False
+    )
+
+    assert stats.imported + stats.filtered + stats.skipped > 0
+
+    # Test KanjidicImporter.import_n5_kanji
+    kanji_importer = KanjidicImporter(jlpt_mapper=mapper, db_path=clean_db)
+
+    stats = kanji_importer.import_n5_kanji(
+        kanjidic_path=sample_kanjidic,
+        download_if_missing=False
+    )
+
+    assert stats.imported + stats.filtered + stats.skipped > 0
+
+    # All imported items should be N5
+    vocab_list = list_vocabulary(db_path=clean_db)
+    for vocab in vocab_list:
+        assert vocab['jlpt_level'] == 'n5'
+
+    kanji_list = list_kanji(db_path=clean_db)
+    for kanji in kanji_list:
+        assert kanji['jlpt_level'] == 'n5'
+
+
+def test_multiple_levels_in_same_database(clean_db, sample_xml_dir, jlpt_data_dir):
+    """Test that multiple JLPT levels can coexist in the same database."""
+    sample_jmdict = sample_xml_dir / "sample_jmdict.xml"
+    sample_kanjidic = sample_xml_dir / "sample_kanjidic.xml"
+
+    # Import N5 vocabulary
+    mapper_n5 = JLPTLevelMapper(data_dir=jlpt_data_dir, levels={"n5"})
+    importer_n5 = JMdictImporter(jlpt_mapper=mapper_n5, db_path=clean_db)
+    stats_n5 = importer_n5.import_vocabulary(
+        level="n5",
+        jmdict_path=sample_jmdict,
+        download_if_missing=False
+    )
+
+    # Import N4 vocabulary (different level)
+    mapper_n4 = JLPTLevelMapper(data_dir=jlpt_data_dir, levels={"n4"})
+    importer_n4 = JMdictImporter(jlpt_mapper=mapper_n4, db_path=clean_db)
+    stats_n4 = importer_n4.import_vocabulary(
+        level="n4",
+        jmdict_path=sample_jmdict,
+        download_if_missing=False
+    )
+
+    # Verify both levels exist in database
+    n5_vocab = list_vocabulary(jlpt_level="n5", db_path=clean_db)
+    n4_vocab = list_vocabulary(jlpt_level="n4", db_path=clean_db)
+
+    # Should have separate entries for each level
+    for vocab in n5_vocab:
+        assert vocab['jlpt_level'] == 'n5'
+    for vocab in n4_vocab:
+        assert vocab['jlpt_level'] == 'n4'

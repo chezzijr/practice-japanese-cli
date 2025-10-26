@@ -7,32 +7,42 @@ fast lookup methods for filtering during import.
 
 import csv
 from pathlib import Path
-from typing import Optional, Set, Tuple
+from typing import Dict, Optional, Set, Tuple
 
 
 class JLPTLevelMapper:
     """
     JLPT level mapper that loads reference lists and provides lookup methods.
 
-    Loads N5 vocabulary and kanji lists from data/dict/ directory and caches
+    Loads N1-N5 vocabulary and kanji lists from data/dict/ directory and caches
     them in memory for O(1) lookup during import operations.
 
     Attributes:
-        n5_vocab: Set of (word, reading) tuples for N5 vocabulary
-        n5_kanji: Set of kanji characters for N5 level
+        vocab_sets: Dictionary mapping levels to vocabulary sets
+        kanji_sets: Dictionary mapping levels to kanji character sets
         data_dir: Path to directory containing JLPT reference files
+
+    Example:
+        >>> mapper = JLPTLevelMapper()
+        >>> mapper.is_vocab_at_level("単語", "たんご", "n5")
+        True
+        >>> mapper.is_kanji_at_level("語", "n5")
+        True
     """
 
-    def __init__(self, data_dir: Optional[Path] = None):
+    VALID_LEVELS = {"n1", "n2", "n3", "n4", "n5"}
+
+    def __init__(self, data_dir: Optional[Path] = None, levels: Optional[set] = None):
         """
         Initialize JLPT level mapper and load reference lists.
 
         Args:
             data_dir: Path to data/dict/ directory (defaults to project data/dict/)
+            levels: Set of levels to load (default: {"n5"} for backward compatibility)
 
         Raises:
             FileNotFoundError: If reference files are not found
-            ValueError: If reference files are malformed
+            ValueError: If reference files are malformed or invalid level specified
         """
         if data_dir is None:
             # Default to project data/dict/ directory
@@ -40,17 +50,37 @@ class JLPTLevelMapper:
 
         self.data_dir = Path(data_dir)
 
-        # Initialize empty sets
-        self.n5_vocab: Set[Tuple[str, str]] = set()
-        self.n5_kanji: Set[str] = set()
+        # Validate levels
+        if levels is None:
+            levels = {"n5"}  # Default to N5 only for backward compatibility
 
-        # Load reference lists
-        self._load_n5_vocab()
-        self._load_n5_kanji()
+        invalid_levels = levels - self.VALID_LEVELS
+        if invalid_levels:
+            raise ValueError(f"Invalid JLPT levels: {invalid_levels}. Valid levels: {self.VALID_LEVELS}")
 
-    def _load_n5_vocab(self) -> None:
+        # Initialize dictionaries to store vocab and kanji sets for each level
+        self.vocab_sets: Dict[str, Set[Tuple[str, str]]] = {level: set() for level in levels}
+        self.kanji_sets: Dict[str, Set[str]] = {level: set() for level in levels}
+
+        # Load reference lists for specified levels
+        for level in levels:
+            self._load_vocab(level)
+            self._load_kanji(level)
+
+        # Backward compatibility: expose N5 sets as attributes
+        if "n5" in self.vocab_sets:
+            self.n5_vocab = self.vocab_sets["n5"]
+            self.n5_kanji = self.kanji_sets["n5"]
+        else:
+            self.n5_vocab = set()
+            self.n5_kanji = set()
+
+    def _load_vocab(self, level: str) -> None:
         """
-        Load N5 vocabulary list from CSV file.
+        Load vocabulary list for a specific JLPT level from CSV file.
+
+        Args:
+            level: JLPT level (n1, n2, n3, n4, or n5)
 
         Expected CSV format:
             word,reading
@@ -58,15 +88,15 @@ class JLPTLevelMapper:
             ...
 
         Raises:
-            FileNotFoundError: If n5_vocab.csv is not found
+            FileNotFoundError: If vocab CSV file is not found
             ValueError: If CSV is malformed
         """
-        vocab_file = self.data_dir / "n5_vocab.csv"
+        vocab_file = self.data_dir / f"{level}_vocab.csv"
 
         if not vocab_file.exists():
             raise FileNotFoundError(
-                f"N5 vocabulary file not found: {vocab_file}\n"
-                f"Please ensure n5_vocab.csv exists in {self.data_dir}"
+                f"{level.upper()} vocabulary file not found: {vocab_file}\n"
+                f"Please ensure {level}_vocab.csv exists in {self.data_dir}"
             )
 
         with open(vocab_file, "r", encoding="utf-8") as f:
@@ -81,38 +111,127 @@ class JLPTLevelMapper:
 
             # Load all vocabulary as (word, reading) tuples
             for row in reader:
-                word = row["word"].strip()
-                reading = row["reading"].strip()
+                word = row.get("word", "").strip() if row.get("word") else ""
+                reading = row.get("reading", "").strip() if row.get("reading") else ""
 
                 if word and reading:
-                    self.n5_vocab.add((word, reading))
+                    self.vocab_sets[level].add((word, reading))
 
-    def _load_n5_kanji(self) -> None:
+    def _load_kanji(self, level: str) -> None:
         """
-        Load N5 kanji list from text file.
+        Load kanji list for a specific JLPT level from text file.
+
+        Args:
+            level: JLPT level (n1, n2, n3, n4, or n5)
 
         Expected format: One kanji character per line
 
         Raises:
-            FileNotFoundError: If n5_kanji.txt is not found
+            FileNotFoundError: If kanji text file is not found
         """
-        kanji_file = self.data_dir / "n5_kanji.txt"
+        kanji_file = self.data_dir / f"{level}_kanji.txt"
 
         if not kanji_file.exists():
             raise FileNotFoundError(
-                f"N5 kanji file not found: {kanji_file}\n"
-                f"Please ensure n5_kanji.txt exists in {self.data_dir}"
+                f"{level.upper()} kanji file not found: {kanji_file}\n"
+                f"Please ensure {level}_kanji.txt exists in {self.data_dir}"
             )
 
         with open(kanji_file, "r", encoding="utf-8") as f:
             for line in f:
                 kanji = line.strip()
                 if kanji:  # Skip empty lines
-                    self.n5_kanji.add(kanji)
+                    self.kanji_sets[level].add(kanji)
+
+    def is_vocab_at_level(self, word: str, reading: str, level: str) -> bool:
+        """
+        Check if a vocabulary word is in a specific JLPT level.
+
+        Automatically loads the level data if not already loaded (lazy loading).
+
+        Args:
+            word: Japanese word (kanji/kana)
+            reading: Reading in hiragana/katakana
+            level: JLPT level (n1, n2, n3, n4, or n5)
+
+        Returns:
+            bool: True if word is in the specified level's vocabulary list
+
+        Raises:
+            ValueError: If level is invalid
+            FileNotFoundError: If level data files are not found
+
+        Example:
+            >>> mapper = JLPTLevelMapper(levels={"n5"})
+            >>> mapper.is_vocab_at_level("単語", "たんご", "n5")
+            True
+            >>> mapper.is_vocab_at_level("難しい", "むずかしい", "n4")  # Auto-loads N4
+            True
+        """
+        # Validate level
+        if level not in self.VALID_LEVELS:
+            raise ValueError(f"Invalid level: {level}. Valid levels: {self.VALID_LEVELS}")
+
+        # Lazy load if not already loaded
+        if level not in self.vocab_sets:
+            self.vocab_sets[level] = set()
+            self.kanji_sets[level] = set()
+            self._load_vocab(level)
+            self._load_kanji(level)
+
+        return (word, reading) in self.vocab_sets[level]
+
+    def is_kanji_at_level(self, character: str, level: str) -> bool:
+        """
+        Check if a kanji character is in a specific JLPT level.
+
+        Automatically loads the level data if not already loaded (lazy loading).
+
+        Args:
+            character: Single kanji character
+            level: JLPT level (n1, n2, n3, n4, or n5)
+
+        Returns:
+            bool: True if kanji is in the specified level's kanji list
+
+        Raises:
+            ValueError: If level is invalid
+            FileNotFoundError: If level data files are not found
+
+        Example:
+            >>> mapper = JLPTLevelMapper(levels={"n5"})
+            >>> mapper.is_kanji_at_level("語", "n5")
+            True
+            >>> mapper.is_kanji_at_level("難", "n4")  # Auto-loads N4
+            True
+        """
+        # Validate level
+        if level not in self.VALID_LEVELS:
+            raise ValueError(f"Invalid level: {level}. Valid levels: {self.VALID_LEVELS}")
+
+        # Lazy load if not already loaded
+        if level not in self.kanji_sets:
+            self.vocab_sets[level] = set()
+            self.kanji_sets[level] = set()
+            self._load_vocab(level)
+            self._load_kanji(level)
+
+        return character in self.kanji_sets[level]
+
+    # Backward compatibility methods for N5
+    def _load_n5_vocab(self) -> None:
+        """Load N5 vocabulary (backward compatibility wrapper)."""
+        self._load_vocab("n5")
+
+    def _load_n5_kanji(self) -> None:
+        """Load N5 kanji (backward compatibility wrapper)."""
+        self._load_kanji("n5")
 
     def is_n5_vocab(self, word: str, reading: str) -> bool:
         """
         Check if a vocabulary word is in the N5 level.
+
+        Backward compatibility wrapper for is_vocab_at_level.
 
         Args:
             word: Japanese word (kanji/kana)
@@ -125,14 +244,16 @@ class JLPTLevelMapper:
             >>> mapper = JLPTLevelMapper()
             >>> mapper.is_n5_vocab("単語", "たんご")
             True
-            >>> mapper.is_n5_vocab("未知", "みち")
-            False
         """
-        return (word, reading) in self.n5_vocab
+        if "n5" not in self.vocab_sets:
+            return False
+        return self.is_vocab_at_level(word, reading, "n5")
 
     def is_n5_kanji(self, character: str) -> bool:
         """
         Check if a kanji character is in the N5 level.
+
+        Backward compatibility wrapper for is_kanji_at_level.
 
         Args:
             character: Single kanji character
@@ -144,33 +265,75 @@ class JLPTLevelMapper:
             >>> mapper = JLPTLevelMapper()
             >>> mapper.is_n5_kanji("語")
             True
-            >>> mapper.is_n5_kanji("鬱")
-            False
         """
-        return character in self.n5_kanji
+        if "n5" not in self.kanji_sets:
+            return False
+        return self.is_kanji_at_level(character, "n5")
+
+    def get_vocab_count(self, level: str) -> int:
+        """
+        Get the total count of vocabulary words for a specific level.
+
+        Args:
+            level: JLPT level (n1, n2, n3, n4, or n5)
+
+        Returns:
+            int: Number of vocabulary entries for the level
+
+        Raises:
+            ValueError: If level is not loaded
+        """
+        if level not in self.vocab_sets:
+            raise ValueError(f"Level {level} not loaded")
+        return len(self.vocab_sets[level])
+
+    def get_kanji_count(self, level: str) -> int:
+        """
+        Get the total count of kanji for a specific level.
+
+        Args:
+            level: JLPT level (n1, n2, n3, n4, or n5)
+
+        Returns:
+            int: Number of kanji characters for the level
+
+        Raises:
+            ValueError: If level is not loaded
+        """
+        if level not in self.kanji_sets:
+            raise ValueError(f"Level {level} not loaded")
+        return len(self.kanji_sets[level])
 
     def get_n5_vocab_count(self) -> int:
         """
         Get the total count of N5 vocabulary words.
 
+        Backward compatibility wrapper.
+
         Returns:
             int: Number of N5 vocabulary entries
         """
-        return len(self.n5_vocab)
+        if "n5" not in self.vocab_sets:
+            return 0
+        return self.get_vocab_count("n5")
 
     def get_n5_kanji_count(self) -> int:
         """
         Get the total count of N5 kanji.
 
+        Backward compatibility wrapper.
+
         Returns:
             int: Number of N5 kanji characters
         """
-        return len(self.n5_kanji)
+        if "n5" not in self.kanji_sets:
+            return 0
+        return self.get_kanji_count("n5")
 
     def __repr__(self) -> str:
-        """String representation showing loaded counts."""
-        return (
-            f"JLPTLevelMapper("
-            f"n5_vocab={len(self.n5_vocab)}, "
-            f"n5_kanji={len(self.n5_kanji)})"
-        )
+        """String representation showing loaded levels and counts."""
+        level_info = ", ".join([
+            f"{level}(vocab={len(self.vocab_sets[level])}, kanji={len(self.kanji_sets[level])})"
+            for level in sorted(self.vocab_sets.keys(), reverse=True)
+        ])
+        return f"JLPTLevelMapper({level_info})"
