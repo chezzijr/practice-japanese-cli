@@ -12,6 +12,7 @@ import pytest
 from japanese_cli.database import (
     add_kanji,
     add_vocabulary,
+    add_grammar,
     create_review,
     initialize_database,
 )
@@ -155,6 +156,22 @@ def db_with_kanji(clean_db, sample_kanji):
     """
     kanji_id = add_kanji(**sample_kanji, db_path=clean_db)
     return clean_db, kanji_id
+
+
+@pytest.fixture
+def db_with_grammar(clean_db, sample_grammar):
+    """
+    Database with sample grammar already inserted.
+
+    Args:
+        clean_db: Clean database fixture
+        sample_grammar: Sample grammar data
+
+    Returns:
+        tuple: (db_path, grammar_id)
+    """
+    grammar_id = add_grammar(**sample_grammar, db_path=clean_db)
+    return clean_db, grammar_id
 
 
 @pytest.fixture
