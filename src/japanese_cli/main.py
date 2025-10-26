@@ -16,6 +16,7 @@ from japanese_cli.database import (
     init_progress,
     database_exists,
 )
+from japanese_cli.cli import import_data
 
 # Initialize console for rich output
 console = Console()
@@ -26,6 +27,9 @@ app = typer.Typer(
     help="Japanese learning CLI with FSRS spaced repetition",
     add_completion=False,
 )
+
+# Register subcommands
+app.add_typer(import_data.app, name="import")
 
 
 @app.command()

@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kanjidic2>
+<header>
+<file_version>4</file_version>
+<database_version>2025-10</database_version>
+<date_of_creation>2025-10-26</date_of_creation>
+</header>
+
+<!-- Character 1: 一 (one) - N5 kanji -->
+<character>
+<literal>一</literal>
+<codepoint>
+<cp_value cp_type="ucs">4E00</cp_value>
+</codepoint>
+<radical>
+<rad_value rad_type="classical">1</rad_value>
+</radical>
+<misc>
+<grade>1</grade>
+<stroke_count>1</stroke_count>
+<freq>2</freq>
+<jlpt>4</jlpt>
+</misc>
+<reading_meaning>
+<rmgroup>
+<reading r_type="ja_on">イチ</reading>
+<reading r_type="ja_on">イツ</reading>
+<reading r_type="ja_kun">ひと</reading>
+<reading r_type="ja_kun">ひと.つ</reading>
+<meaning>one</meaning>
+</rmgroup>
+</reading_meaning>
+</character>
+
+<!-- Character 2: 二 (two) - N5 kanji -->
+<character>
+<literal>二</literal>
+<codepoint>
+<cp_value cp_type="ucs">4E8C</cp_value>
+</codepoint>
+<radical>
+<rad_value rad_type="classical">7</rad_value>
+</radical>
+<misc>
+<grade>1</grade>
+<stroke_count>2</stroke_count>
+<freq>9</freq>
+<jlpt>4</jlpt>
+</misc>
+<reading_meaning>
+<rmgroup>
+<reading r_type="ja_on">ニ</reading>
+<reading r_type="ja_on">ジ</reading>
+<reading r_type="ja_kun">ふた</reading>
+<reading r_type="ja_kun">ふた.つ</reading>
+<meaning>two</meaning>
+</rmgroup>
+</reading_meaning>
+</character>
+
+<!-- Character 3: 語 (language) - N5 kanji -->
+<character>
+<literal>語</literal>
+<codepoint>
+<cp_value cp_type="ucs">8A9E</cp_value>
+</codepoint>
+<radical>
+<rad_value rad_type="classical">149</rad_value>
+</radical>
+<misc>
+<grade>2</grade>
+<stroke_count>14</stroke_count>
+<freq>231</freq>
+<jlpt>4</jlpt>
+</misc>
+<reading_meaning>
+<rmgroup>
+<reading r_type="ja_on">ゴ</reading>
+<reading r_type="ja_kun">かた.る</reading>
+<reading r_type="ja_kun">かた.らう</reading>
+<meaning>word</meaning>
+<meaning>language</meaning>
+</rmgroup>
+</reading_meaning>
+</character>
+
+<!-- Character 4: 学 (study) - N5 kanji -->
+<character>
+<literal>学</literal>
+<codepoint>
+<cp_value cp_type="ucs">5B66</cp_value>
+</codepoint>
+<radical>
+<rad_value rad_type="classical">39</rad_value>
+</radical>
+<misc>
+<grade>1</grade>
+<stroke_count>8</stroke_count>
+<freq>70</freq>
+<jlpt>4</jlpt>
+</misc>
+<reading_meaning>
+<rmgroup>
+<reading r_type="ja_on">ガク</reading>
+<reading r_type="ja_kun">まな.ぶ</reading>
+<meaning>study</meaning>
+<meaning>learning</meaning>
+<meaning>science</meaning>
+</rmgroup>
+</reading_meaning>
+</character>
+
+<!-- Character 5: 鬱 (melancholy) - NOT N5 kanji, should be filtered -->
+<character>
+<literal>鬱</literal>
+<codepoint>
+<cp_value cp_type="ucs">9B31</cp_value>
+</codepoint>
+<radical>
+<rad_value rad_type="classical">192</rad_value>
+</radical>
+<misc>
+<grade>9</grade>
+<stroke_count>29</stroke_count>
+<freq>2325</freq>
+</misc>
+<reading_meaning>
+<rmgroup>
+<reading r_type="ja_on">ウツ</reading>
+<meaning>depression</meaning>
+<meaning>gloom</meaning>
+</rmgroup>
+</reading_meaning>
+</character>
+
+</kanjidic2>

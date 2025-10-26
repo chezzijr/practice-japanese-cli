@@ -82,6 +82,33 @@ def get_vocabulary_by_id(vocab_id: int, db_path: Path | None = None) -> Optional
         return None
 
 
+def get_vocabulary_by_word(
+    word: str,
+    reading: str,
+    db_path: Path | None = None
+) -> Optional[dict[str, Any]]:
+    """
+    Get a vocabulary entry by word and reading.
+
+    Args:
+        word: Japanese word (kanji/kana)
+        reading: Reading in hiragana/katakana
+        db_path: Database path (optional)
+
+    Returns:
+        dict or None: Vocabulary data as dictionary, or None if not found
+    """
+    with get_cursor(db_path) as cursor:
+        cursor.execute(
+            "SELECT * FROM vocabulary WHERE word = ? AND reading = ?",
+            (word, reading)
+        )
+        row = cursor.fetchone()
+        if row:
+            return dict(row)
+        return None
+
+
 def list_vocabulary(
     jlpt_level: Optional[str] = None,
     limit: Optional[int] = None,

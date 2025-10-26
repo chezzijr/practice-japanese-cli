@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE JMdict [
+<!ENTITY n "noun">
+<!ENTITY v "verb">
+<!ENTITY adj "adjective">
+<!ENTITY adv "adverb">
+]>
+<JMdict>
+<!-- Sample entry 1: 大学 (university) - N5 word -->
+<entry>
+<ent_seq>1000001</ent_seq>
+<k_ele>
+<keb>大学</keb>
+</k_ele>
+<r_ele>
+<reb>だいがく</reb>
+</r_ele>
+<sense>
+<pos>&n;</pos>
+<gloss>university</gloss>
+<gloss>college</gloss>
+</sense>
+</entry>
+
+<!-- Sample entry 2: 学校 (school) - N5 word -->
+<entry>
+<ent_seq>1000002</ent_seq>
+<k_ele>
+<keb>学校</keb>
+</k_ele>
+<r_ele>
+<reb>がっこう</reb>
+</r_ele>
+<sense>
+<pos>&n;</pos>
+<gloss>school</gloss>
+</sense>
+</entry>
+
+<!-- Sample entry 3: 先生 (teacher) - N5 word -->
+<entry>
+<ent_seq>1000003</ent_seq>
+<k_ele>
+<keb>先生</keb>
+</k_ele>
+<r_ele>
+<reb>せんせい</reb>
+</r_ele>
+<sense>
+<pos>&n;</pos>
+<gloss>teacher</gloss>
+<gloss>master</gloss>
+<gloss>doctor</gloss>
+</sense>
+</entry>
+
+<!-- Sample entry 4: 歩く (to walk) - N5 word -->
+<entry>
+<ent_seq>1000004</ent_seq>
+<k_ele>
+<keb>歩く</keb>
+</k_ele>
+<r_ele>
+<reb>あるく</reb>
+</r_ele>
+<sense>
+<pos>&v;</pos>
+<gloss>to walk</gloss>
+</sense>
+</entry>
+
+<!-- Sample entry 5: 青い (blue) - N5 word -->
+<entry>
+<ent_seq>1000005</ent_seq>
+<k_ele>
+<keb>青い</keb>
+</k_ele>
+<r_ele>
+<reb>あおい</reb>
+</r_ele>
+<sense>
+<pos>&adj;</pos>
+<gloss>blue</gloss>
+</sense>
+</entry>
+
+<!-- Sample entry 6: 複雑 (complex) - NOT N5 word, should be filtered -->
+<entry>
+<ent_seq>1000006</ent_seq>
+<k_ele>
+<keb>複雑</keb>
+</k_ele>
+<r_ele>
+<reb>ふくざつ</reb>
+</r_ele>
+<sense>
+<pos>&adj;</pos>
+<gloss>complex</gloss>
+<gloss>complicated</gloss>
+</sense>
+</entry>
+
+</JMdict>
