@@ -148,8 +148,11 @@ class Progress(BaseModel):
         # stats validator will handle string parsing
 
         # Parse milestones JSON field
-        if 'milestones' in data and isinstance(data['milestones'], str):
-            data['milestones'] = json.loads(data['milestones']) if data['milestones'] else []
+        if 'milestones' in data:
+            if data['milestones'] is None:
+                data['milestones'] = []
+            elif isinstance(data['milestones'], str):
+                data['milestones'] = json.loads(data['milestones']) if data['milestones'] else []
 
         return cls.model_validate(data)
 

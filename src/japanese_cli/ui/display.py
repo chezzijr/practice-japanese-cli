@@ -5,8 +5,8 @@ Provides functions to create Rich tables, panels, and formatted output
 for vocabulary, kanji, and other learning materials.
 """
 
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import datetime, timezone, date, timedelta
+from typing import Optional, Any
 
 from rich.console import Console, Group
 from rich.panel import Panel
@@ -650,3 +650,308 @@ def display_session_summary(
     )
 
     return panel
+
+
+# ============================================================================
+# Progress Dashboard Display
+# ============================================================================
+
+def display_progress_dashboard(
+    progress: Any,  # Progress model
+    vocab_counts: dict[str, int],
+    kanji_counts: dict[str, int],
+    mastered_counts: dict[str, int],
+    due_today: int,
+    total_reviews: int,
+    retention_rate: float
+) -> Panel:
+    """
+    Display progress dashboard with Rich panel.
+
+    Shows current/target level, study streak, item counts, and key statistics.
+
+    Args:
+        progress: Progress model instance
+        vocab_counts: Vocab counts by level (from calculate_vocab_counts_by_level)
+        kanji_counts: Kanji counts by level (from calculate_kanji_counts_by_level)
+        mastered_counts: Mastered item counts by type
+        due_today: Number of cards due for review today
+        total_reviews: Total reviews completed
+        retention_rate: Retention rate percentage (0-100)
+
+    Returns:
+        Panel: Rich panel with dashboard content
+
+    Example:
+        panel = display_progress_dashboard(
+            progress=progress,
+            vocab_counts={"n5": 81, "total": 81},
+            kanji_counts={"n5": 103, "total": 103},
+            mastered_counts={"vocab": 50, "kanji": 20, "total": 70},
+            due_today=15,
+            total_reviews=500,
+            retention_rate=85.5
+        )
+    """
+    from ..models import Progress
+
+    # Ensure progress is a Progress model
+    if not isinstance(progress, Progress):
+        raise TypeError(f"Expected Progress model, got {type(progress)}")
+
+    # Build content lines
+    content_lines = []
+
+    # Level information
+    current_level_color = JLPT_COLORS.get(progress.current_level, "white")
+    target_level_color = JLPT_COLORS.get(progress.target_level, "white")
+
+    content_lines.append("[bold]📚 Study Progress[/bold]")
+    content_lines.append("")
+    content_lines.append(
+        f"Current Level: [{current_level_color}]{progress.current_level.upper()}[/{current_level_color}]"
+    )
+    content_lines.append(
+        f"Target Level:  [{target_level_color}]{progress.target_level.upper()}[/{target_level_color}]"
+    )
+    content_lines.append("")
+
+    # Study streak
+    if progress.streak_days > 0:
+        streak_emoji = "🔥" if progress.streak_days >= 7 else "⭐"
+        content_lines.append(
+            f"{streak_emoji} Study Streak: [bold yellow]{progress.streak_days}[/bold yellow] "
+            f"day{'s' if progress.streak_days != 1 else ''}"
+        )
+    else:
+        content_lines.append("⭐ Study Streak: [dim]0 days (start reviewing!)[/dim]")
+
+    # Last review date
+    if progress.last_review_date:
+        days_ago = (date.today() - progress.last_review_date).days
+        if days_ago == 0:
+            time_str = "[green]Today[/green]"
+        elif days_ago == 1:
+            time_str = "[yellow]Yesterday[/yellow]"
+        else:
+            time_str = f"[dim]{days_ago} days ago[/dim]"
+        content_lines.append(f"Last Review: {time_str}")
+    else:
+        content_lines.append("Last Review: [dim]Never[/dim]")
+
+    content_lines.append("")
+
+    # Item counts
+    content_lines.append("[bold]📊 Flashcard Inventory[/bold]")
+    content_lines.append("")
+
+    total_vocab = vocab_counts.get("total", 0)
+    total_kanji = kanji_counts.get("total", 0)
+    total_items = total_vocab + total_kanji
+
+    content_lines.append(f"Total Vocabulary: [cyan]{total_vocab}[/cyan]")
+    content_lines.append(f"Total Kanji:      [yellow]{total_kanji}[/yellow]")
+    content_lines.append(f"Total Items:      [bold]{total_items}[/bold]")
+    content_lines.append("")
+
+    # Mastered counts
+    mastered_vocab = mastered_counts.get("vocab", 0)
+    mastered_kanji = mastered_counts.get("kanji", 0)
+    mastered_total = mastered_counts.get("total", 0)
+
+    content_lines.append("[bold]✨ Mastered (21+ day intervals)[/bold]")
+    content_lines.append("")
+    content_lines.append(f"Vocabulary: [green]{mastered_vocab}[/green]")
+    content_lines.append(f"Kanji:      [green]{mastered_kanji}[/green]")
+    content_lines.append(f"Total:      [bold green]{mastered_total}[/bold green]")
+    content_lines.append("")
+
+    # Review statistics
+    content_lines.append("[bold]📈 Review Statistics[/bold]")
+    content_lines.append("")
+
+    if due_today > 0:
+        content_lines.append(f"Due Today:      [red bold]{due_today}[/red bold] 🔔")
+    else:
+        content_lines.append("Due Today:      [green]0[/green] ✓")
+
+    content_lines.append(f"Total Reviews:  [cyan]{total_reviews}[/cyan]")
+
+    if total_reviews > 0:
+        # Color-code retention rate
+        if retention_rate >= 85.0:
+            rate_color = "green"
+        elif retention_rate >= 70.0:
+            rate_color = "yellow"
+        else:
+            rate_color = "red"
+        content_lines.append(f"Retention Rate: [{rate_color}]{retention_rate:.1f}%[/{rate_color}]")
+    else:
+        content_lines.append("Retention Rate: [dim]N/A[/dim]")
+
+    # Create panel
+    panel = Panel(
+        "\n".join(content_lines),
+        title="📊 Progress Dashboard",
+        border_style="cyan",
+        expand=False
+    )
+
+    return panel
+
+
+def display_statistics(
+    total_reviews: int,
+    retention_rate: float,
+    avg_duration_seconds: float,
+    daily_counts: dict[str, int],
+    most_reviewed: list[dict[str, Any]],
+    date_range_label: str = "All Time"
+) -> Panel:
+    """
+    Display detailed statistics with Rich table.
+
+    Shows review counts, retention rate, average time, daily breakdown,
+    and most reviewed items.
+
+    Args:
+        total_reviews: Total number of reviews in period
+        retention_rate: Retention rate percentage (0-100)
+        avg_duration_seconds: Average time per review in seconds
+        daily_counts: Daily review counts (ISO date -> count)
+        most_reviewed: List of most reviewed items
+        date_range_label: Label for the date range (e.g., "Last 7 Days")
+
+    Returns:
+        Panel: Rich panel with statistics
+
+    Example:
+        panel = display_statistics(
+            total_reviews=500,
+            retention_rate=85.5,
+            avg_duration_seconds=4.5,
+            daily_counts={"2025-10-20": 15, "2025-10-21": 20},
+            most_reviewed=[{"word": "単語", "review_count": 50}, ...],
+            date_range_label="Last 7 Days"
+        )
+    """
+    from rich.table import Table
+
+    content_lines = []
+
+    # Header
+    content_lines.append(f"[bold]Statistics: {date_range_label}[/bold]")
+    content_lines.append("")
+
+    # Summary metrics
+    content_lines.append("[bold]📈 Summary[/bold]")
+    content_lines.append("")
+    content_lines.append(f"Total Reviews: [cyan]{total_reviews}[/cyan]")
+
+    if total_reviews > 0:
+        # Retention rate
+        if retention_rate >= 85.0:
+            rate_color = "green"
+        elif retention_rate >= 70.0:
+            rate_color = "yellow"
+        else:
+            rate_color = "red"
+        content_lines.append(f"Retention Rate: [{rate_color}]{retention_rate:.1f}%[/{rate_color}]")
+
+        # Average time
+        content_lines.append(f"Avg Time per Card: [cyan]{avg_duration_seconds:.1f}s[/cyan]")
+    else:
+        content_lines.append("Retention Rate: [dim]N/A[/dim]")
+        content_lines.append("Avg Time per Card: [dim]N/A[/dim]")
+
+    content_lines.append("")
+
+    # Daily review counts (if available)
+    if daily_counts and len(daily_counts) > 0:
+        content_lines.append("[bold]📅 Daily Review Activity[/bold]")
+        content_lines.append("")
+
+        # Sort by date
+        sorted_dates = sorted(daily_counts.keys())
+
+        # Show last 7 days max (or fewer if less data available)
+        display_dates = sorted_dates[-7:] if len(sorted_dates) > 7 else sorted_dates
+
+        max_count = max(daily_counts.values()) if daily_counts.values() else 1
+
+        for date_str in display_dates:
+            count = daily_counts[date_str]
+
+            # Format date nicely
+            date_obj = date.fromisoformat(date_str)
+            if date_obj == date.today():
+                label = "Today    "
+            elif date_obj == date.today() - timedelta(days=1):
+                label = "Yesterday"
+            else:
+                label = date_obj.strftime("%b %d   ")
+
+            # Create simple bar chart
+            bar_length = int((count / max_count) * 20) if max_count > 0 else 0
+            bar = "█" * bar_length
+            content_lines.append(f"{label}: [cyan]{bar}[/cyan] {count}")
+
+        content_lines.append("")
+
+    # Most reviewed items
+    if most_reviewed and len(most_reviewed) > 0:
+        content_lines.append("[bold]🔥 Most Reviewed Items[/bold]")
+        content_lines.append("")
+
+        for item in most_reviewed[:5]:  # Show top 5
+            if "word" in item:
+                text = item["word"]
+            elif "character" in item:
+                text = item["character"]
+            else:
+                text = "Unknown"
+
+            count = item.get("review_count", 0)
+            content_lines.append(f"  {text}: [yellow]{count}[/yellow] reviews")
+
+        content_lines.append("")
+
+    # Create panel
+    panel = Panel(
+        "\n".join(content_lines),
+        title="📊 Detailed Statistics",
+        border_style="magenta",
+        expand=False
+    )
+
+    return panel
+
+
+def format_relative_date(target_date: date) -> str:
+    """
+    Format a date relative to today.
+
+    Args:
+        target_date: The date to format
+
+    Returns:
+        str: Formatted string (e.g., "Today", "Yesterday", "3 days ago", "In 5 days")
+
+    Example:
+        format_relative_date(date.today())  # "Today"
+        format_relative_date(date.today() - timedelta(days=1))  # "Yesterday"
+        format_relative_date(date.today() - timedelta(days=5))  # "5 days ago"
+    """
+    today = date.today()
+    delta_days = (target_date - today).days
+
+    if delta_days == 0:
+        return "Today"
+    elif delta_days == 1:
+        return "Tomorrow"
+    elif delta_days == -1:
+        return "Yesterday"
+    elif delta_days > 0:
+        return f"In {delta_days} days"
+    else:
+        return f"{abs(delta_days)} days ago"

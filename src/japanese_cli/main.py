@@ -16,7 +16,7 @@ from japanese_cli.database import (
     init_progress,
     database_exists,
 )
-from japanese_cli.cli import import_data, flashcard
+from japanese_cli.cli import import_data, flashcard, progress
 
 # Initialize console for rich output
 console = Console()
@@ -31,6 +31,7 @@ app = typer.Typer(
 # Register subcommands
 app.add_typer(import_data.app, name="import")
 app.add_typer(flashcard.app, name="flashcard")
+app.add_typer(progress.app, name="progress")
 
 
 @app.command()

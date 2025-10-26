@@ -988,3 +988,58 @@ def increment_streak(user_id: str = "default", db_path: Path | None = None) -> b
             WHERE user_id = ?
         """, (today.isoformat(), user_id))
         return cursor.rowcount > 0
+
+
+def update_progress_level(
+    current_level: Optional[str] = None,
+    target_level: Optional[str] = None,
+    user_id: str = "default",
+    db_path: Path | None = None
+) -> bool:
+    """
+    Update user's current and/or target JLPT level.
+
+    Args:
+        current_level: New current JLPT level (optional, n5/n4/n3/n2/n1)
+        target_level: New target JLPT level (optional, n5/n4/n3/n2/n1)
+        user_id: User ID (default: "default")
+        db_path: Database path (optional)
+
+    Returns:
+        bool: True if updated, False if not found
+
+    Example:
+        # Update target level to N4
+        update_progress_level(target_level="n4")
+
+        # Update both levels
+        update_progress_level(current_level="n4", target_level="n3")
+    """
+    if current_level is None and target_level is None:
+        # Nothing to update
+        return False
+
+    with get_cursor(db_path) as cursor:
+        # Build dynamic UPDATE query based on what's provided
+        update_fields = []
+        params = []
+
+        if current_level is not None:
+            update_fields.append("current_level = ?")
+            params.append(current_level)
+
+        if target_level is not None:
+            update_fields.append("target_level = ?")
+            params.append(target_level)
+
+        update_fields.append("updated_at = CURRENT_TIMESTAMP")
+
+        query = f"""
+            UPDATE progress
+            SET {', '.join(update_fields)}
+            WHERE user_id = ?
+        """
+        params.append(user_id)
+
+        cursor.execute(query, params)
+        return cursor.rowcount > 0

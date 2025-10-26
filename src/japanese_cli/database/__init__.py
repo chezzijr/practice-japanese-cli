@@ -46,6 +46,7 @@ from .queries import (
     update_grammar,
     update_kanji,
     update_progress,
+    update_progress_level,
     update_review,
     update_vocabulary,
 )
@@ -100,5 +101,6 @@ __all__ = [
     "get_progress",
     "init_progress",
     "update_progress",
+    "update_progress_level",
     "increment_streak",
 ]

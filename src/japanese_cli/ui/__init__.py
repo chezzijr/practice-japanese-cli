@@ -14,6 +14,9 @@ from .display import (
     display_card_answer,
     prompt_rating,
     display_session_summary,
+    display_progress_dashboard,
+    display_statistics,
+    format_relative_date,
     JLPT_COLORS,
 )
 
@@ -56,6 +59,9 @@ __all__ = [
     "display_card_answer",
     "prompt_rating",
     "display_session_summary",
+    "display_progress_dashboard",
+    "display_statistics",
+    "format_relative_date",
     "JLPT_COLORS",
     # Furigana utilities
     "render_furigana",
