@@ -20,6 +20,11 @@ from .display import (
     display_statistics,
     format_relative_date,
     JLPT_COLORS,
+    # MCQ display functions
+    display_mcq_question,
+    display_mcq_result,
+    display_mcq_session_summary,
+    prompt_mcq_option,
 )
 
 from .furigana import (
@@ -69,6 +74,11 @@ __all__ = [
     "display_statistics",
     "format_relative_date",
     "JLPT_COLORS",
+    # MCQ display utilities
+    "display_mcq_question",
+    "display_mcq_result",
+    "display_mcq_session_summary",
+    "prompt_mcq_option",
     # Furigana utilities
     "render_furigana",
     "format_word_with_reading",

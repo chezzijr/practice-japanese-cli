@@ -202,6 +202,47 @@ CREATE TABLE review_history (
 - `idx_history_review` on `review_id`
 - `idx_history_date` on `reviewed_at`
 
+### Table: `mcq_reviews`
+Tracks FSRS state for MCQ (Multiple Choice Question) reviews - separate from flashcard reviews.
+
+```sql
+CREATE TABLE mcq_reviews (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    item_id INTEGER NOT NULL,              -- Foreign key to vocabulary.id or kanji.id
+    item_type TEXT NOT NULL,               -- 'vocab' or 'kanji'
+    fsrs_card_state TEXT NOT NULL,         -- JSON: FSRS Card state (difficulty, stability, etc.)
+    due_date TIMESTAMP NOT NULL,           -- Next review date
+    last_reviewed TIMESTAMP,               -- Last review timestamp
+    review_count INTEGER DEFAULT 0,        -- Total reviews done
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(item_id, item_type)
+);
+```
+
+**Indexes**:
+- `idx_mcq_reviews_due` on `due_date`
+- `idx_mcq_reviews_item` on `(item_id, item_type)`
+
+### Table: `mcq_review_history`
+Complete history of all MCQ reviews with selected option and correctness tracking.
+
+```sql
+CREATE TABLE mcq_review_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    mcq_review_id INTEGER NOT NULL,        -- Foreign key to mcq_reviews.id
+    selected_option INTEGER NOT NULL,      -- Index of selected option (0-3 for A/B/C/D)
+    is_correct INTEGER NOT NULL,           -- 1 if correct, 0 if incorrect
+    duration_ms INTEGER,                   -- Time spent in milliseconds
+    reviewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (mcq_review_id) REFERENCES mcq_reviews(id) ON DELETE CASCADE
+);
+```
+
+**Indexes**:
+- `idx_mcq_history_review` on `mcq_review_id`
+- `idx_mcq_history_date` on `reviewed_at`
+
 ### Table: `progress`
 User progress tracking and statistics.
 
@@ -284,6 +325,126 @@ scheduler = Scheduler(
 - `Rating.Hard` (2): Difficult to recall, shorter interval
 - `Rating.Good` (3): Recalled correctly, normal interval
 - `Rating.Easy` (4): Very easy to recall, longer interval
+
+## MCQ (Multiple Choice Question) System
+
+### Overview
+The MCQ system provides an alternative review mode using multiple-choice questions with intelligent distractor selection. MCQ reviews have independent FSRS scheduling from flashcard reviews, allowing users to practice the same items via both modes.
+
+### Key Design Decisions
+1. **Separate FSRS tracking**: MCQ reviews tracked independently in `mcq_reviews` table
+   - Rationale: Different review modes have different difficulty levels
+   - Same item can be reviewed via both flashcards and MCQ
+
+2. **Dynamic generation**: Questions generated on-the-fly, not stored
+   - Rationale: Saves storage, ensures variety, enables future AI enhancement
+   - Distractors can vary each review session
+
+3. **Binary FSRS ratings**: Correct=3 (Good), Incorrect=1 (Again)
+   - Rationale: MCQ has objective correctness, no subjective "hard/easy"
+   - Simpler than 4-option rating for multiple choice
+
+### Question Types
+- **Word→Meaning**: Show Japanese word/kanji, select correct Vietnamese/English meaning
+- **Meaning→Word**: Show Vietnamese/English meaning, select correct Japanese word/kanji
+
+### Distractor Selection Strategies (MCQGenerator)
+The `MCQGenerator` class uses 4 strategies to create challenging but fair questions:
+
+1. **Same JLPT Level**: Match difficulty level for fair challenge
+   - Queries items with matching `jlpt_level`, limit 10 random
+
+2. **Similar Meanings**: Semantic similarity via keyword matching
+   - Extracts keywords (first 2 words) + LIKE query in meanings
+
+3. **Similar Readings**: Phonetic similarity
+   - Vocab: Prefix matching (first 2 chars of reading)
+   - Kanji: On-reading matching
+
+4. **Visually Similar** (kanji only): Same radical or similar stroke count
+   - Radical match + stroke count range (±2)
+
+All strategies are combined, shuffled, and limited to 3 distractors + 1 correct answer.
+
+### MCQ Scheduler (MCQReviewScheduler)
+```python
+from japanese_cli.srs import MCQReviewScheduler
+from japanese_cli.models import ItemType
+
+scheduler = MCQReviewScheduler()
+
+# Create MCQ review for an item
+review_id = scheduler.create_mcq_review(vocab_id, ItemType.VOCAB)
+
+# Get due MCQ cards (with filters)
+due_mcqs = scheduler.get_due_mcqs(limit=20, jlpt_level="n5", item_type="vocab")
+
+# Process review (updates FSRS state + records history)
+updated_review = scheduler.process_mcq_review(
+    review_id=review_id,
+    is_correct=True,
+    selected_option=0,  # 0-3 for A/B/C/D
+    duration_ms=3500
+)
+```
+
+### MCQ Statistics Functions
+Three statistics functions in `srs/statistics.py`:
+
+```python
+from japanese_cli.srs import (
+    get_mcq_accuracy_rate,
+    get_mcq_stats_by_type,
+    get_mcq_option_distribution
+)
+
+# Overall accuracy rate
+accuracy = get_mcq_accuracy_rate()  # 85.5% (all-time)
+
+# Filtered accuracy
+accuracy = get_mcq_accuracy_rate(
+    start_date=date.today() - timedelta(days=7),
+    end_date=date.today(),
+    item_type="vocab",
+    jlpt_level="n5"
+)  # 82.3% (last 7 days, N5 vocab)
+
+# Stats broken down by vocab vs kanji
+stats = get_mcq_stats_by_type()
+# {
+#     "vocab": {"total_reviews": 50, "correct_count": 42, "accuracy_rate": 84.0},
+#     "kanji": {"total_reviews": 30, "correct_count": 25, "accuracy_rate": 83.3},
+#     "overall": {"total_reviews": 80, "correct_count": 67, "accuracy_rate": 83.8}
+# }
+
+# Option distribution (detect selection bias)
+distribution = get_mcq_option_distribution()
+# {"A": 45, "B": 38, "C": 42, "D": 35}
+# Shows if user unconsciously favors certain positions
+```
+
+### CLI Command
+```bash
+# Basic MCQ review
+japanese-cli flashcard mcq
+
+# Filtered by type and level
+japanese-cli flashcard mcq --type vocab --level n5 --limit 10
+
+# Question mode options
+japanese-cli flashcard mcq --question-type word-to-meaning      # Show word, select meaning
+japanese-cli flashcard mcq --question-type meaning-to-word      # Show meaning, select word
+japanese-cli flashcard mcq --question-type mixed                # Random per question
+
+# Language options
+japanese-cli flashcard mcq --language vi  # Vietnamese meanings (default)
+japanese-cli flashcard mcq --language en  # English meanings
+
+# Mixed vocab and kanji
+japanese-cli flashcard mcq --type both --limit 20
+```
+
+**Auto-creation**: The command auto-creates MCQ reviews for items that don't have them yet.
 
 ## UI/UX Design
 
@@ -548,6 +709,12 @@ japanese-cli flashcard review
 
 # Review specific level
 japanese-cli flashcard review --level n5 --limit 20
+
+# MCQ (Multiple Choice Question) review
+japanese-cli flashcard mcq --type vocab --limit 10
+
+# MCQ with all options
+japanese-cli flashcard mcq --type both --level n5 --question-type mixed --language vi
 
 # View progress
 japanese-cli progress show

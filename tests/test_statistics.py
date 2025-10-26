@@ -13,7 +13,7 @@ from src.japanese_cli.database import (
     add_vocabulary,
     add_kanji,
 )
-from src.japanese_cli.srs import ReviewScheduler
+from src.japanese_cli.srs import ReviewScheduler, MCQReviewScheduler
 from src.japanese_cli.srs.statistics import (
     MASTERY_STABILITY_THRESHOLD,
     calculate_vocab_counts_by_level,
@@ -24,6 +24,9 @@ from src.japanese_cli.srs.statistics import (
     get_reviews_by_date_range,
     aggregate_daily_review_counts,
     calculate_average_review_duration,
+    get_mcq_accuracy_rate,
+    get_mcq_stats_by_type,
+    get_mcq_option_distribution,
 )
 
 
@@ -613,3 +616,366 @@ class TestCalculateAverageReviewDuration:
 
         assert isinstance(avg_duration, float)
         assert avg_duration >= 0.0
+
+
+# ============================================================================
+# MCQ Statistics Tests
+# ============================================================================
+
+@pytest.fixture
+def db_with_mcq_reviews_and_history(clean_db):
+    """Database with MCQ reviews and history spanning multiple days."""
+    from src.japanese_cli.models import ItemType
+    from src.japanese_cli.database import get_cursor
+
+    # Add vocabulary items
+    vocab_ids = []
+    for i in range(5):
+        vocab_id = add_vocabulary(
+            word=f"単語{i}",
+            reading=f"たんご{i}",
+            meanings={"vi": [f"từ {i}"], "en": [f"word {i}"]},
+            jlpt_level="n5",
+            db_path=clean_db
+        )
+        vocab_ids.append(vocab_id)
+
+    # Add kanji items
+    kanji_ids = []
+    kanji_chars = ["語", "話", "読", "書", "聞"]
+    for i, char in enumerate(kanji_chars):
+        kanji_id = add_kanji(
+            character=char,
+            on_readings=[f"オン{i}"],
+            kun_readings=[f"くん{i}"],
+            meanings={"vi": [f"kanji {i}"], "en": [f"kanji {i}"]},
+            jlpt_level="n5",
+            db_path=clean_db
+        )
+        kanji_ids.append(kanji_id)
+
+    # Create MCQ reviews
+    scheduler = MCQReviewScheduler(db_path=clean_db)
+    mcq_review_ids = []
+
+    # Create 3 vocab MCQ reviews
+    for vocab_id in vocab_ids[:3]:
+        review_id = scheduler.create_mcq_review(vocab_id, ItemType.VOCAB)
+        mcq_review_ids.append((review_id, ItemType.VOCAB))
+
+    # Create 2 kanji MCQ reviews
+    for kanji_id in kanji_ids[:2]:
+        review_id = scheduler.create_mcq_review(kanji_id, ItemType.KANJI)
+        mcq_review_ids.append((review_id, ItemType.KANJI))
+
+    # Add MCQ review history with mixed correct/incorrect answers
+    with get_cursor(clean_db) as cursor:
+        # Vocab reviews (3 items): 2 correct, 1 incorrect
+        # Review 1: Correct (option A)
+        cursor.execute("""
+            INSERT INTO mcq_review_history (mcq_review_id, selected_option, is_correct, duration_ms)
+            VALUES (?, ?, ?, ?)
+        """, (mcq_review_ids[0][0], 0, 1, 3000))
+
+        # Review 2: Correct (option B)
+        cursor.execute("""
+            INSERT INTO mcq_review_history (mcq_review_id, selected_option, is_correct, duration_ms)
+            VALUES (?, ?, ?, ?)
+        """, (mcq_review_ids[1][0], 1, 1, 4000))
+
+        # Review 3: Incorrect (option C)
+        cursor.execute("""
+            INSERT INTO mcq_review_history (mcq_review_id, selected_option, is_correct, duration_ms)
+            VALUES (?, ?, ?, ?)
+        """, (mcq_review_ids[2][0], 2, 0, 2500))
+
+        # Kanji reviews (2 items): 1 correct, 1 incorrect
+        # Review 4: Correct (option A)
+        cursor.execute("""
+            INSERT INTO mcq_review_history (mcq_review_id, selected_option, is_correct, duration_ms)
+            VALUES (?, ?, ?, ?)
+        """, (mcq_review_ids[3][0], 0, 1, 3500))
+
+        # Review 5: Incorrect (option D)
+        cursor.execute("""
+            INSERT INTO mcq_review_history (mcq_review_id, selected_option, is_correct, duration_ms)
+            VALUES (?, ?, ?, ?)
+        """, (mcq_review_ids[4][0], 3, 0, 2000))
+
+    return clean_db, vocab_ids, kanji_ids, mcq_review_ids
+
+
+# Tests for get_mcq_accuracy_rate
+
+class TestGetMCQAccuracyRate:
+    """Tests for get_mcq_accuracy_rate function."""
+
+    def test_empty_database(self, clean_db):
+        """Test with no MCQ reviews returns 0.0."""
+        accuracy = get_mcq_accuracy_rate(db_path=clean_db)
+        assert accuracy == 0.0
+
+    def test_overall_accuracy(self, db_with_mcq_reviews_and_history):
+        """Test calculating overall MCQ accuracy."""
+        db_path, vocab_ids, kanji_ids, mcq_review_ids = db_with_mcq_reviews_and_history
+
+        # 3 correct, 2 incorrect = 60% accuracy
+        accuracy = get_mcq_accuracy_rate(db_path=db_path)
+
+        assert isinstance(accuracy, float)
+        assert accuracy == 60.0  # 3/5 * 100
+
+    def test_filter_by_vocab_type(self, db_with_mcq_reviews_and_history):
+        """Test filtering by vocab item type."""
+        db_path, vocab_ids, kanji_ids, mcq_review_ids = db_with_mcq_reviews_and_history
+
+        # Vocab: 2 correct, 1 incorrect = 66.7% accuracy
+        accuracy = get_mcq_accuracy_rate(item_type="vocab", db_path=db_path)
+
+        assert isinstance(accuracy, float)
+        assert 66.0 <= accuracy <= 67.0  # ~66.7%
+
+    def test_filter_by_kanji_type(self, db_with_mcq_reviews_and_history):
+        """Test filtering by kanji item type."""
+        db_path, vocab_ids, kanji_ids, mcq_review_ids = db_with_mcq_reviews_and_history
+
+        # Kanji: 1 correct, 1 incorrect = 50% accuracy
+        accuracy = get_mcq_accuracy_rate(item_type="kanji", db_path=db_path)
+
+        assert accuracy == 50.0  # 1/2 * 100
+
+    def test_filter_by_jlpt_level(self, db_with_mcq_reviews_and_history):
+        """Test filtering by JLPT level."""
+        db_path, vocab_ids, kanji_ids, mcq_review_ids = db_with_mcq_reviews_and_history
+
+        # All items are N5, so should match overall accuracy
+        accuracy = get_mcq_accuracy_rate(jlpt_level="n5", db_path=db_path)
+
+        assert accuracy == 60.0  # 3/5 * 100
+
+    def test_filter_by_jlpt_level_no_matches(self, db_with_mcq_reviews_and_history):
+        """Test filtering by JLPT level with no matching reviews."""
+        db_path, vocab_ids, kanji_ids, mcq_review_ids = db_with_mcq_reviews_and_history
+
+        # No N1 items
+        accuracy = get_mcq_accuracy_rate(jlpt_level="n1", db_path=db_path)
+
+        assert accuracy == 0.0
+
+    def test_filter_by_date_range(self, db_with_mcq_reviews_and_history):
+        """Test filtering by date range."""
+        db_path, vocab_ids, kanji_ids, mcq_review_ids = db_with_mcq_reviews_and_history
+
+        today = date.today()
+        accuracy = get_mcq_accuracy_rate(
+            start_date=today,
+            end_date=today,
+            db_path=db_path
+        )
+
+        # All reviews are today, so should match overall
+        assert accuracy == 60.0
+
+    def test_filter_combined(self, db_with_mcq_reviews_and_history):
+        """Test combined filtering (type + JLPT + date)."""
+        db_path, vocab_ids, kanji_ids, mcq_review_ids = db_with_mcq_reviews_and_history
+
+        today = date.today()
+        accuracy = get_mcq_accuracy_rate(
+            start_date=today,
+            end_date=today,
+            item_type="vocab",
+            jlpt_level="n5",
+            db_path=db_path
+        )
+
+        assert 66.0 <= accuracy <= 67.0  # Vocab N5 today: 2/3 correct
+
+
+# Tests for get_mcq_stats_by_type
+
+class TestGetMCQStatsByType:
+    """Tests for get_mcq_stats_by_type function."""
+
+    def test_empty_database(self, clean_db):
+        """Test with no MCQ reviews returns zeros."""
+        stats = get_mcq_stats_by_type(db_path=clean_db)
+
+        assert isinstance(stats, dict)
+        assert "vocab" in stats
+        assert "kanji" in stats
+        assert "overall" in stats
+
+        # All should be zero
+        assert stats["vocab"]["total_reviews"] == 0
+        assert stats["kanji"]["total_reviews"] == 0
+        assert stats["overall"]["total_reviews"] == 0
+
+    def test_stats_structure(self, db_with_mcq_reviews_and_history):
+        """Test the structure of returned stats."""
+        db_path, vocab_ids, kanji_ids, mcq_review_ids = db_with_mcq_reviews_and_history
+
+        stats = get_mcq_stats_by_type(db_path=db_path)
+
+        # Check structure
+        for item_type in ["vocab", "kanji", "overall"]:
+            assert item_type in stats
+            assert "total_reviews" in stats[item_type]
+            assert "correct_count" in stats[item_type]
+            assert "incorrect_count" in stats[item_type]
+            assert "accuracy_rate" in stats[item_type]
+
+    def test_vocab_stats(self, db_with_mcq_reviews_and_history):
+        """Test vocab-specific statistics."""
+        db_path, vocab_ids, kanji_ids, mcq_review_ids = db_with_mcq_reviews_and_history
+
+        stats = get_mcq_stats_by_type(db_path=db_path)
+
+        # Vocab: 3 total, 2 correct, 1 incorrect, 66.7% accuracy
+        assert stats["vocab"]["total_reviews"] == 3
+        assert stats["vocab"]["correct_count"] == 2
+        assert stats["vocab"]["incorrect_count"] == 1
+        assert 66.0 <= stats["vocab"]["accuracy_rate"] <= 67.0
+
+    def test_kanji_stats(self, db_with_mcq_reviews_and_history):
+        """Test kanji-specific statistics."""
+        db_path, vocab_ids, kanji_ids, mcq_review_ids = db_with_mcq_reviews_and_history
+
+        stats = get_mcq_stats_by_type(db_path=db_path)
+
+        # Kanji: 2 total, 1 correct, 1 incorrect, 50% accuracy
+        assert stats["kanji"]["total_reviews"] == 2
+        assert stats["kanji"]["correct_count"] == 1
+        assert stats["kanji"]["incorrect_count"] == 1
+        assert stats["kanji"]["accuracy_rate"] == 50.0
+
+    def test_overall_stats(self, db_with_mcq_reviews_and_history):
+        """Test overall aggregated statistics."""
+        db_path, vocab_ids, kanji_ids, mcq_review_ids = db_with_mcq_reviews_and_history
+
+        stats = get_mcq_stats_by_type(db_path=db_path)
+
+        # Overall: 5 total, 3 correct, 2 incorrect, 60% accuracy
+        assert stats["overall"]["total_reviews"] == 5
+        assert stats["overall"]["correct_count"] == 3
+        assert stats["overall"]["incorrect_count"] == 2
+        assert stats["overall"]["accuracy_rate"] == 60.0
+
+    def test_filter_by_jlpt_level(self, db_with_mcq_reviews_and_history):
+        """Test filtering by JLPT level."""
+        db_path, vocab_ids, kanji_ids, mcq_review_ids = db_with_mcq_reviews_and_history
+
+        stats = get_mcq_stats_by_type(jlpt_level="n5", db_path=db_path)
+
+        # All items are N5, so should match unfiltered stats
+        assert stats["overall"]["total_reviews"] == 5
+
+    def test_filter_by_date_range(self, db_with_mcq_reviews_and_history):
+        """Test filtering by date range."""
+        db_path, vocab_ids, kanji_ids, mcq_review_ids = db_with_mcq_reviews_and_history
+
+        today = date.today()
+        stats = get_mcq_stats_by_type(
+            start_date=today,
+            end_date=today,
+            db_path=db_path
+        )
+
+        # All reviews are today
+        assert stats["overall"]["total_reviews"] == 5
+
+    def test_filter_past_date_range(self, db_with_mcq_reviews_and_history):
+        """Test filtering by past date range returns zeros."""
+        db_path, vocab_ids, kanji_ids, mcq_review_ids = db_with_mcq_reviews_and_history
+
+        past = date.today() - timedelta(days=7)
+        stats = get_mcq_stats_by_type(
+            start_date=past,
+            end_date=past,
+            db_path=db_path
+        )
+
+        # No reviews from 7 days ago
+        assert stats["overall"]["total_reviews"] == 0
+
+
+# Tests for get_mcq_option_distribution
+
+class TestGetMCQOptionDistribution:
+    """Tests for get_mcq_option_distribution function."""
+
+    def test_empty_database(self, clean_db):
+        """Test with no MCQ reviews returns all zeros."""
+        distribution = get_mcq_option_distribution(db_path=clean_db)
+
+        assert isinstance(distribution, dict)
+        assert distribution == {"A": 0, "B": 0, "C": 0, "D": 0}
+
+    def test_option_distribution(self, db_with_mcq_reviews_and_history):
+        """Test getting option distribution."""
+        db_path, vocab_ids, kanji_ids, mcq_review_ids = db_with_mcq_reviews_and_history
+
+        distribution = get_mcq_option_distribution(db_path=db_path)
+
+        # From fixture:
+        # - 2 reviews selected option A (index 0)
+        # - 1 review selected option B (index 1)
+        # - 1 review selected option C (index 2)
+        # - 1 review selected option D (index 3)
+        assert distribution["A"] == 2
+        assert distribution["B"] == 1
+        assert distribution["C"] == 1
+        assert distribution["D"] == 1
+
+    def test_all_options_present(self, db_with_mcq_reviews_and_history):
+        """Test that all 4 options are always in result."""
+        db_path, vocab_ids, kanji_ids, mcq_review_ids = db_with_mcq_reviews_and_history
+
+        distribution = get_mcq_option_distribution(db_path=db_path)
+
+        # All options should be present, even if count is 0
+        assert "A" in distribution
+        assert "B" in distribution
+        assert "C" in distribution
+        assert "D" in distribution
+
+    def test_filter_by_date_range(self, db_with_mcq_reviews_and_history):
+        """Test filtering by date range."""
+        db_path, vocab_ids, kanji_ids, mcq_review_ids = db_with_mcq_reviews_and_history
+
+        today = date.today()
+        distribution = get_mcq_option_distribution(
+            start_date=today,
+            end_date=today,
+            db_path=db_path
+        )
+
+        # All reviews are today, so should match unfiltered
+        assert distribution["A"] == 2
+        assert distribution["B"] == 1
+        assert distribution["C"] == 1
+        assert distribution["D"] == 1
+
+    def test_filter_past_date_range(self, db_with_mcq_reviews_and_history):
+        """Test filtering by past date range returns zeros."""
+        db_path, vocab_ids, kanji_ids, mcq_review_ids = db_with_mcq_reviews_and_history
+
+        past = date.today() - timedelta(days=7)
+        distribution = get_mcq_option_distribution(
+            start_date=past,
+            end_date=past,
+            db_path=db_path
+        )
+
+        # No reviews from 7 days ago
+        assert distribution == {"A": 0, "B": 0, "C": 0, "D": 0}
+
+    def test_detect_selection_bias(self, db_with_mcq_reviews_and_history):
+        """Test that we can detect selection bias."""
+        db_path, vocab_ids, kanji_ids, mcq_review_ids = db_with_mcq_reviews_and_history
+
+        distribution = get_mcq_option_distribution(db_path=db_path)
+
+        # User selected A twice, suggesting possible bias toward first option
+        max_selections = max(distribution.values())
+        assert distribution["A"] == max_selections

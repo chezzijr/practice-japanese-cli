@@ -564,3 +564,297 @@ def calculate_average_review_duration(
 
         # Convert milliseconds to seconds
         return round(avg_ms / 1000.0, 1)
+
+
+# ============================================================================
+# MCQ Statistics Functions
+# ============================================================================
+
+
+def get_mcq_accuracy_rate(
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    item_type: Optional[str] = None,
+    jlpt_level: Optional[str] = None,
+    db_path: Optional[Path] = None
+) -> float:
+    """
+    Calculate MCQ accuracy rate (percentage of correct answers).
+
+    Args:
+        start_date: Optional start date for filtering
+        end_date: Optional end date for filtering
+        item_type: Optional filter ('vocab' or 'kanji')
+        jlpt_level: Optional filter for JLPT level
+        db_path: Optional database path
+
+    Returns:
+        float: Accuracy rate as percentage (0.0 to 100.0)
+
+    Example:
+        # All-time MCQ accuracy
+        rate = get_mcq_accuracy_rate()
+        # 82.5
+
+        # Last 7 days for N5 vocabulary
+        rate = get_mcq_accuracy_rate(
+            start_date=date.today() - timedelta(days=7),
+            end_date=date.today(),
+            item_type="vocab",
+            jlpt_level="n5"
+        )
+    """
+    with get_cursor(db_path) as cursor:
+        # Build query with filters
+        query = """
+            SELECT
+                COUNT(*) as total,
+                SUM(CASE WHEN h.is_correct = 1 THEN 1 ELSE 0 END) as correct_count
+            FROM mcq_review_history h
+            JOIN mcq_reviews r ON h.mcq_review_id = r.id
+            WHERE 1=1
+        """
+        params: list[Any] = []
+
+        # Date filtering
+        if start_date and end_date:
+            query += " AND DATE(h.reviewed_at) >= ? AND DATE(h.reviewed_at) <= ?"
+            params.extend([start_date.isoformat(), end_date.isoformat()])
+        elif start_date:
+            query += " AND DATE(h.reviewed_at) >= ?"
+            params.append(start_date.isoformat())
+
+        # Item type filtering
+        if item_type:
+            query += " AND r.item_type = ?"
+            params.append(item_type)
+
+        # JLPT level filtering
+        if jlpt_level:
+            if item_type == "vocab":
+                query += " AND r.item_id IN (SELECT id FROM vocabulary WHERE jlpt_level = ?)"
+                params.append(jlpt_level)
+            elif item_type == "kanji":
+                query += " AND r.item_id IN (SELECT id FROM kanji WHERE jlpt_level = ?)"
+                params.append(jlpt_level)
+            else:
+                # Both types - check both tables
+                query += """ AND (
+                    (r.item_type = 'vocab' AND r.item_id IN (SELECT id FROM vocabulary WHERE jlpt_level = ?))
+                    OR (r.item_type = 'kanji' AND r.item_id IN (SELECT id FROM kanji WHERE jlpt_level = ?))
+                )"""
+                params.extend([jlpt_level, jlpt_level])
+
+        cursor.execute(query, tuple(params))
+        row = cursor.fetchone()
+
+        if row:
+            total = row[0] or 0
+            correct = row[1] or 0
+
+            if total == 0:
+                return 0.0
+
+            accuracy = (correct / total) * 100.0
+            return round(accuracy, 1)
+
+        return 0.0
+
+
+def get_mcq_stats_by_type(
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    jlpt_level: Optional[str] = None,
+    db_path: Optional[Path] = None
+) -> dict[str, dict[str, Any]]:
+    """
+    Get MCQ statistics broken down by item type (vocab vs kanji).
+
+    Provides separate accuracy and review counts for vocabulary and kanji items,
+    allowing comparison of performance across different content types.
+
+    Args:
+        start_date: Optional start date for filtering
+        end_date: Optional end date for filtering
+        jlpt_level: Optional filter for JLPT level
+        db_path: Optional database path
+
+    Returns:
+        dict: Statistics by type with structure:
+              {
+                  "vocab": {
+                      "total_reviews": int,
+                      "correct_count": int,
+                      "incorrect_count": int,
+                      "accuracy_rate": float
+                  },
+                  "kanji": {...},
+                  "overall": {...}
+              }
+
+    Example:
+        stats = get_mcq_stats_by_type(jlpt_level="n5")
+        # {
+        #     "vocab": {"total_reviews": 50, "correct_count": 42, "accuracy_rate": 84.0},
+        #     "kanji": {"total_reviews": 30, "correct_count": 25, "accuracy_rate": 83.3},
+        #     "overall": {"total_reviews": 80, "correct_count": 67, "accuracy_rate": 83.8}
+        # }
+    """
+    with get_cursor(db_path) as cursor:
+        # Build base query with date filtering
+        base_query = """
+            SELECT
+                r.item_type,
+                COUNT(*) as total,
+                SUM(CASE WHEN h.is_correct = 1 THEN 1 ELSE 0 END) as correct_count
+            FROM mcq_review_history h
+            JOIN mcq_reviews r ON h.mcq_review_id = r.id
+            WHERE 1=1
+        """
+        params: list[Any] = []
+
+        # Date filtering
+        if start_date and end_date:
+            base_query += " AND DATE(h.reviewed_at) >= ? AND DATE(h.reviewed_at) <= ?"
+            params.extend([start_date.isoformat(), end_date.isoformat()])
+        elif start_date:
+            base_query += " AND DATE(h.reviewed_at) >= ?"
+            params.append(start_date.isoformat())
+
+        # JLPT level filtering
+        if jlpt_level:
+            base_query += """ AND (
+                (r.item_type = 'vocab' AND r.item_id IN (SELECT id FROM vocabulary WHERE jlpt_level = ?))
+                OR (r.item_type = 'kanji' AND r.item_id IN (SELECT id FROM kanji WHERE jlpt_level = ?))
+            )"""
+            params.extend([jlpt_level, jlpt_level])
+
+        base_query += " GROUP BY r.item_type"
+
+        cursor.execute(base_query, tuple(params))
+        rows = cursor.fetchall()
+
+        # Initialize result structure
+        result = {
+            "vocab": {
+                "total_reviews": 0,
+                "correct_count": 0,
+                "incorrect_count": 0,
+                "accuracy_rate": 0.0
+            },
+            "kanji": {
+                "total_reviews": 0,
+                "correct_count": 0,
+                "incorrect_count": 0,
+                "accuracy_rate": 0.0
+            },
+            "overall": {
+                "total_reviews": 0,
+                "correct_count": 0,
+                "incorrect_count": 0,
+                "accuracy_rate": 0.0
+            }
+        }
+
+        # Process rows
+        for row in rows:
+            item_type = row[0]
+            total = row[1] or 0
+            correct = row[2] or 0
+            incorrect = total - correct
+            accuracy = (correct / total * 100.0) if total > 0 else 0.0
+
+            if item_type in result:
+                result[item_type] = {
+                    "total_reviews": total,
+                    "correct_count": correct,
+                    "incorrect_count": incorrect,
+                    "accuracy_rate": round(accuracy, 1)
+                }
+
+        # Calculate overall stats
+        vocab_total = result["vocab"]["total_reviews"]
+        vocab_correct = result["vocab"]["correct_count"]
+        kanji_total = result["kanji"]["total_reviews"]
+        kanji_correct = result["kanji"]["correct_count"]
+
+        overall_total = vocab_total + kanji_total
+        overall_correct = vocab_correct + kanji_correct
+        overall_accuracy = (overall_correct / overall_total * 100.0) if overall_total > 0 else 0.0
+
+        result["overall"] = {
+            "total_reviews": overall_total,
+            "correct_count": overall_correct,
+            "incorrect_count": overall_total - overall_correct,
+            "accuracy_rate": round(overall_accuracy, 1)
+        }
+
+        return result
+
+
+def get_mcq_option_distribution(
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    db_path: Optional[Path] = None
+) -> dict[str, int]:
+    """
+    Get distribution of selected MCQ options (A/B/C/D).
+
+    Useful for detecting selection bias - users might unconsciously favor
+    certain positions (e.g., always choosing A or avoiding D).
+
+    Args:
+        start_date: Optional start date for filtering
+        end_date: Optional end date for filtering
+        db_path: Optional database path
+
+    Returns:
+        dict: Mapping of option label to selection count
+              (e.g., {"A": 45, "B": 38, "C": 42, "D": 35})
+
+    Example:
+        # Check if user has selection bias
+        dist = get_mcq_option_distribution()
+        # {"A": 45, "B": 38, "C": 42, "D": 35}
+
+        # Last 30 days distribution
+        dist = get_mcq_option_distribution(
+            start_date=date.today() - timedelta(days=30),
+            end_date=date.today()
+        )
+    """
+    with get_cursor(db_path) as cursor:
+        # Build query with date filtering
+        query = """
+            SELECT selected_option, COUNT(*) as count
+            FROM mcq_review_history
+            WHERE 1=1
+        """
+        params: list[Any] = []
+
+        # Date filtering
+        if start_date and end_date:
+            query += " AND DATE(reviewed_at) >= ? AND DATE(reviewed_at) <= ?"
+            params.extend([start_date.isoformat(), end_date.isoformat()])
+        elif start_date:
+            query += " AND DATE(reviewed_at) >= ?"
+            params.append(start_date.isoformat())
+
+        query += " GROUP BY selected_option ORDER BY selected_option"
+
+        cursor.execute(query, tuple(params))
+        rows = cursor.fetchall()
+
+        # Initialize all options with 0
+        distribution = {"A": 0, "B": 0, "C": 0, "D": 0}
+        option_labels = ["A", "B", "C", "D"]
+
+        # Map selected_option (0-3) to labels (A-D)
+        for row in rows:
+            option_index = row[0]
+            count = row[1]
+            if 0 <= option_index < 4:
+                label = option_labels[option_index]
+                distribution[label] = count
+
+        return distribution

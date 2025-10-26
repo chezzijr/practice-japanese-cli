@@ -1147,3 +1147,326 @@ def format_grammar_panel(grammar: GrammarPoint) -> Panel:
         border_style="cyan",
         padding=(1, 2)
     )
+
+
+# ============================================================================
+# MCQ (Multiple Choice Question) Display
+# ============================================================================
+
+def display_mcq_question(
+    question: 'MCQQuestion',
+    current: int,
+    total: int
+) -> Panel:
+    """
+    Display a multiple-choice question with 4 options.
+
+    Args:
+        question: MCQQuestion instance with question text and options
+        current: Current question number (1-indexed)
+        total: Total questions in session
+
+    Returns:
+        Rich Panel with MCQ question display
+
+    Example:
+        >>> from japanese_cli.models.mcq import MCQQuestion
+        >>> from japanese_cli.models.review import ItemType
+        >>> question = MCQQuestion(
+        ...     item_id=1,
+        ...     item_type=ItemType.VOCAB,
+        ...     question_text="What is the meaning of '単語' (たんご)?",
+        ...     options=["từ vựng", "kanji", "ngữ pháp", "đọc"],
+        ...     correct_index=0,
+        ...     jlpt_level="n5"
+        ... )
+        >>> panel = display_mcq_question(question, 1, 20)
+        >>> console.print(panel)
+    """
+    from ..models.mcq import MCQQuestion
+
+    content_lines = []
+
+    # Progress indicator
+    content_lines.append(f"[dim]Question {current} of {total}[/dim]")
+    content_lines.append("")
+
+    # JLPT level indicator (if available)
+    if question.jlpt_level:
+        jlpt_color = JLPT_COLORS.get(question.jlpt_level, "white")
+        content_lines.append(f"[{jlpt_color}]Level: {question.jlpt_level.upper()}[/{jlpt_color}]")
+        content_lines.append("")
+
+    # Question text
+    content_lines.append("[bold cyan]Question:[/bold cyan]")
+    content_lines.append(f"[white]{question.question_text}[/white]")
+    content_lines.append("")
+
+    # Options (A, B, C, D)
+    option_labels = ["A", "B", "C", "D"]
+    content_lines.append("[bold]Options:[/bold]")
+    for i, (label, option) in enumerate(zip(option_labels, question.options)):
+        content_lines.append(f"  [bold magenta][{label}][/bold magenta] {option}")
+
+    # Instruction
+    content_lines.append("")
+    content_lines.append("[dim italic]Press A, B, C, or D to answer...[/dim italic]")
+
+    # Create panel
+    title = f"🤔 Multiple Choice Question"
+    panel = Panel(
+        "\n".join(content_lines),
+        title=title,
+        border_style="yellow",
+        expand=False
+    )
+
+    return panel
+
+
+def display_mcq_result(
+    question: 'MCQQuestion',
+    selected_index: int,
+    is_correct: bool
+) -> Panel:
+    """
+    Display the result of an MCQ answer with feedback.
+
+    Args:
+        question: MCQQuestion instance
+        selected_index: Index of the option selected by user (0-3)
+        is_correct: Whether the answer was correct
+
+    Returns:
+        Rich Panel with result display
+
+    Example:
+        >>> panel = display_mcq_result(question, selected_index=0, is_correct=True)
+        >>> console.print(panel)
+    """
+    from ..models.mcq import MCQQuestion
+
+    content_lines = []
+
+    # Header with result
+    if is_correct:
+        content_lines.append("[bold green]✓ Correct![/bold green]")
+    else:
+        content_lines.append("[bold red]✗ Incorrect[/bold red]")
+    content_lines.append("")
+
+    # Show selected answer
+    option_labels = ["A", "B", "C", "D"]
+    selected_label = option_labels[selected_index]
+    selected_answer = question.options[selected_index]
+
+    if is_correct:
+        content_lines.append(f"[bold]Your answer:[/bold] [green][{selected_label}] {selected_answer}[/green]")
+    else:
+        content_lines.append(f"[bold]Your answer:[/bold] [red][{selected_label}] {selected_answer}[/red]")
+
+        # Show correct answer
+        correct_label = option_labels[question.correct_index]
+        correct_answer = question.get_correct_answer()
+        content_lines.append(f"[bold]Correct answer:[/bold] [green][{correct_label}] {correct_answer}[/green]")
+
+    # Explanation (if available)
+    if question.explanation:
+        content_lines.append("")
+        content_lines.append("[bold]Explanation:[/bold]")
+        content_lines.append(f"[dim]{question.explanation}[/dim]")
+
+    # Create panel
+    border_style = "green" if is_correct else "red"
+    title = "✓ Result" if is_correct else "✗ Result"
+
+    panel = Panel(
+        "\n".join(content_lines),
+        title=title,
+        border_style=border_style,
+        expand=False
+    )
+
+    return panel
+
+
+def display_mcq_session_summary(
+    total_reviewed: int,
+    correct_count: int,
+    incorrect_count: int,
+    total_time_seconds: float,
+    accuracy_rate: float,
+    next_review_dates: list[tuple[str, datetime]],
+) -> Panel:
+    """
+    Display summary statistics after an MCQ review session.
+
+    Args:
+        total_reviewed: Total number of questions answered
+        correct_count: Number of correct answers
+        incorrect_count: Number of incorrect answers
+        total_time_seconds: Total session duration in seconds
+        accuracy_rate: Accuracy percentage (0-100)
+        next_review_dates: List of (word/kanji, due_date) tuples
+
+    Returns:
+        Rich Panel with session summary
+
+    Example:
+        >>> from datetime import datetime, timezone
+        >>> next_dates = [("単語", datetime.now(timezone.utc)), ...]
+        >>> panel = display_mcq_session_summary(
+        ...     total_reviewed=20,
+        ...     correct_count=17,
+        ...     incorrect_count=3,
+        ...     total_time_seconds=300.5,
+        ...     accuracy_rate=85.0,
+        ...     next_review_dates=next_dates
+        ... )
+        >>> console.print(panel)
+    """
+    content_lines = []
+
+    # Header
+    content_lines.append(f"[bold green]✓ MCQ session complete![/bold green]")
+    content_lines.append("")
+
+    # Questions answered
+    content_lines.append(f"[bold]Questions answered:[/bold] {total_reviewed}")
+    content_lines.append("")
+
+    # Correct/incorrect breakdown
+    content_lines.append("[bold]Results:[/bold]")
+    content_lines.append(f"  [green]✓ Correct:[/green] {correct_count}")
+    content_lines.append(f"  [red]✗ Incorrect:[/red] {incorrect_count}")
+    content_lines.append("")
+
+    # Accuracy rate with color coding
+    if accuracy_rate >= 85.0:
+        rate_color = "green"
+        rate_emoji = "🎯"
+    elif accuracy_rate >= 70.0:
+        rate_color = "yellow"
+        rate_emoji = "👍"
+    else:
+        rate_color = "red"
+        rate_emoji = "📚"
+
+    content_lines.append(
+        f"[bold]Accuracy:[/bold] [{rate_color}]{accuracy_rate:.1f}%[/{rate_color}] {rate_emoji}"
+    )
+    content_lines.append("")
+
+    # Time statistics
+    avg_time = total_time_seconds / total_reviewed if total_reviewed > 0 else 0
+    minutes = int(total_time_seconds // 60)
+    seconds = int(total_time_seconds % 60)
+    content_lines.append(f"[bold]Time:[/bold] {minutes}m {seconds}s total")
+    content_lines.append(f"[dim]Average per question: {avg_time:.1f}s[/dim]")
+    content_lines.append("")
+
+    # Next review preview (first 5)
+    if next_review_dates:
+        content_lines.append("[bold]Next reviews:[/bold]")
+        now = datetime.now(timezone.utc)
+        for word, due_date in next_review_dates[:5]:
+            days = (due_date - now).days
+            if days == 0:
+                time_str = "[red]Due now[/red]"
+            elif days == 1:
+                time_str = "[yellow]Tomorrow[/yellow]"
+            else:
+                time_str = f"[dim]In {days} days[/dim]"
+            content_lines.append(f"  {word}: {time_str}")
+
+        if len(next_review_dates) > 5:
+            content_lines.append(f"  [dim]... and {len(next_review_dates) - 5} more[/dim]")
+
+    # Create panel
+    panel = Panel(
+        "\n".join(content_lines),
+        title="📊 MCQ Session Summary",
+        border_style="green",
+        expand=False
+    )
+
+    return panel
+
+
+def prompt_mcq_option() -> int:
+    """
+    Prompt user to select an MCQ option (A/B/C/D).
+
+    Displays option guide and captures input with single keypress (no Enter needed).
+    Converts letter to index: A→0, B→1, C→2, D→3.
+
+    Returns:
+        int: Selected option index (0-3)
+
+    Raises:
+        KeyboardInterrupt: If user presses Ctrl+C
+
+    Example:
+        >>> option_index = prompt_mcq_option()
+        >>> # User presses 'B' (no Enter needed)
+        >>> print(option_index)  # 1
+    """
+    import sys
+    from rich.prompt import Prompt
+
+    console = Console()
+
+    # Display option guide
+    guide = Table.grid(padding=(0, 2))
+    guide.add_column(style="bold magenta", justify="right")
+    guide.add_column()
+
+    guide.add_row("[A]", "[dim]Option A[/dim]")
+    guide.add_row("[B]", "[dim]Option B[/dim]")
+    guide.add_row("[C]", "[dim]Option C[/dim]")
+    guide.add_row("[D]", "[dim]Option D[/dim]")
+
+    console.print("")
+    console.print(guide)
+    console.print("")
+    console.print("[bold]Select your answer[/bold] [dim](press A, B, C, or D):[/dim] ", end="")
+
+    # Flush output to ensure prompt is displayed
+    sys.stdout.flush()
+
+    # Capture single keypress
+    while True:
+        try:
+            key = get_single_keypress()
+
+            # Handle Ctrl+C (ASCII code 3)
+            if ord(key) == 3:
+                console.print("\n\n[yellow]Session cancelled[/yellow]")
+                raise KeyboardInterrupt()
+
+            # Validate input (case-insensitive)
+            key_upper = key.upper()
+            if key_upper in ['A', 'B', 'C', 'D']:
+                # Convert to index
+                option_index = ord(key_upper) - ord('A')  # A→0, B→1, C→2, D→3
+                console.print(f"{key_upper}")  # Echo the selection
+                return option_index
+            else:
+                console.print(f"\n[red]Invalid input '{key}'. Please press A, B, C, or D[/red]")
+                console.print("[bold]Select your answer[/bold] [dim](press A, B, C, or D):[/dim] ", end="")
+                sys.stdout.flush()
+
+        except KeyboardInterrupt:
+            raise
+        except Exception as e:
+            console.print(f"\n[red]Error reading input: {e}[/red]")
+            console.print("[yellow]Falling back to standard input...[/yellow]")
+            # Fallback to standard input
+            answer = Prompt.ask(
+                "[bold]Select your answer[/bold]",
+                choices=["A", "B", "C", "D", "a", "b", "c", "d"],
+                default="A"
+            )
+            # Convert to index
+            option_index = ord(answer.upper()) - ord('A')
+            return option_index

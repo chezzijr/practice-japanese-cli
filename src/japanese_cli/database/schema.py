@@ -95,6 +95,33 @@ CREATE TABLE IF NOT EXISTS progress (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(user_id)
 );
+
+-- Table: mcq_reviews
+-- Tracks FSRS state for MCQ reviews (separate from flashcard reviews)
+CREATE TABLE IF NOT EXISTS mcq_reviews (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    item_id INTEGER NOT NULL,              -- Foreign key to vocabulary.id or kanji.id
+    item_type TEXT NOT NULL,               -- 'vocab' or 'kanji'
+    fsrs_card_state TEXT NOT NULL,         -- JSON: FSRS Card state from Card.to_dict()
+    due_date TIMESTAMP NOT NULL,           -- Next review date
+    last_reviewed TIMESTAMP,               -- Last review timestamp
+    review_count INTEGER DEFAULT 0,        -- Total MCQ reviews done
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(item_id, item_type)
+);
+
+-- Table: mcq_review_history
+-- Complete history of all MCQ reviews for analytics
+CREATE TABLE IF NOT EXISTS mcq_review_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    mcq_review_id INTEGER NOT NULL,        -- Foreign key to mcq_reviews.id
+    selected_option INTEGER NOT NULL,      -- Index of selected option (0-3)
+    is_correct INTEGER NOT NULL,           -- 1 if correct, 0 if incorrect
+    duration_ms INTEGER,                   -- Time spent on question (milliseconds)
+    reviewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (mcq_review_id) REFERENCES mcq_reviews(id) ON DELETE CASCADE
+);
 """
 
 # SQL for creating indexes (performance optimization)
@@ -117,6 +144,14 @@ CREATE INDEX IF NOT EXISTS idx_reviews_item ON reviews(item_id, item_type);
 -- Indexes for review_history table
 CREATE INDEX IF NOT EXISTS idx_history_review ON review_history(review_id);
 CREATE INDEX IF NOT EXISTS idx_history_date ON review_history(reviewed_at);
+
+-- Indexes for mcq_reviews table
+CREATE INDEX IF NOT EXISTS idx_mcq_reviews_due ON mcq_reviews(due_date);
+CREATE INDEX IF NOT EXISTS idx_mcq_reviews_item ON mcq_reviews(item_id, item_type);
+
+-- Indexes for mcq_review_history table
+CREATE INDEX IF NOT EXISTS idx_mcq_history_review ON mcq_review_history(mcq_review_id);
+CREATE INDEX IF NOT EXISTS idx_mcq_history_date ON mcq_review_history(reviewed_at);
 """
 
 
@@ -143,5 +178,7 @@ def get_table_names() -> list[str]:
         "grammar_points",
         "reviews",
         "review_history",
-        "progress"
+        "progress",
+        "mcq_reviews",
+        "mcq_review_history"
     ]

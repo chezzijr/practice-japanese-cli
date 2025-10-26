@@ -12,6 +12,17 @@ from .connection import (
     get_db_connection,
     get_db_path,
 )
+from .mcq_queries import (
+    add_mcq_review_history,
+    create_mcq_review,
+    delete_mcq_review,
+    get_due_mcq_cards,
+    get_mcq_review,
+    get_mcq_review_by_id,
+    get_mcq_review_history,
+    get_mcq_stats,
+    update_mcq_review,
+)
 from .migrations import (
     get_schema_version,
     initialize_database,
@@ -97,6 +108,16 @@ __all__ = [
     "update_review",
     "get_due_cards",
     "add_review_history",
+    # MCQ Review queries
+    "create_mcq_review",
+    "get_mcq_review",
+    "get_mcq_review_by_id",
+    "update_mcq_review",
+    "delete_mcq_review",
+    "get_due_mcq_cards",
+    "add_mcq_review_history",
+    "get_mcq_review_history",
+    "get_mcq_stats",
     # Progress queries
     "get_progress",
     "init_progress",

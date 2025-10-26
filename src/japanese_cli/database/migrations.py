@@ -12,7 +12,7 @@ from .schema import get_schema_sql
 
 
 # Current schema version
-CURRENT_VERSION = 1
+CURRENT_VERSION = 2
 
 # Migration functions: version -> migration function
 MIGRATIONS: dict[int, Callable[[Path], None]] = {}
@@ -86,6 +86,53 @@ def migrate_to_v1(db_path: Path) -> None:
         db_path: Path to database file
     """
     execute_script(get_schema_sql(), db_path)
+
+
+@register_migration(2)
+def migrate_to_v2(db_path: Path) -> None:
+    """
+    Add MCQ review tables (v2).
+
+    Adds mcq_reviews and mcq_review_history tables for multiple-choice question reviews.
+
+    Args:
+        db_path: Path to database file
+    """
+    mcq_tables_sql = """
+    -- Table: mcq_reviews
+    CREATE TABLE IF NOT EXISTS mcq_reviews (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        item_id INTEGER NOT NULL,
+        item_type TEXT NOT NULL,
+        fsrs_card_state TEXT NOT NULL,
+        due_date TIMESTAMP NOT NULL,
+        last_reviewed TIMESTAMP,
+        review_count INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(item_id, item_type)
+    );
+
+    -- Table: mcq_review_history
+    CREATE TABLE IF NOT EXISTS mcq_review_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        mcq_review_id INTEGER NOT NULL,
+        selected_option INTEGER NOT NULL,
+        is_correct INTEGER NOT NULL,
+        duration_ms INTEGER,
+        reviewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (mcq_review_id) REFERENCES mcq_reviews(id) ON DELETE CASCADE
+    );
+
+    -- Indexes for mcq_reviews
+    CREATE INDEX IF NOT EXISTS idx_mcq_reviews_due ON mcq_reviews(due_date);
+    CREATE INDEX IF NOT EXISTS idx_mcq_reviews_item ON mcq_reviews(item_id, item_type);
+
+    -- Indexes for mcq_review_history
+    CREATE INDEX IF NOT EXISTS idx_mcq_history_review ON mcq_review_history(mcq_review_id);
+    CREATE INDEX IF NOT EXISTS idx_mcq_history_date ON mcq_review_history(reviewed_at);
+    """
+    execute_script(mcq_tables_sql, db_path)
 
 
 def run_migrations(db_path: Path | None = None) -> int:

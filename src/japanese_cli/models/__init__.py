@@ -6,6 +6,7 @@ This module provides validated data models for all entities in the application:
 - Kanji: Kanji characters with on/kun readings
 - GrammarPoint: Grammar explanations with examples
 - Review: FSRS card state for spaced repetition
+- MCQReview: FSRS card state for MCQ-based reviews
 - Progress: User progress tracking and statistics
 
 All models provide:
@@ -26,6 +27,9 @@ from .grammar import Example, GrammarPoint
 # Review models
 from .review import ItemType, Review, ReviewHistory
 
+# MCQ models
+from .mcq import MCQQuestion, MCQReview, MCQReviewHistory
+
 # Progress models
 from .progress import Progress, ProgressStats
 
@@ -41,6 +45,10 @@ __all__ = [
     "ItemType",
     "Review",
     "ReviewHistory",
+    # MCQ
+    "MCQQuestion",
+    "MCQReview",
+    "MCQReviewHistory",
     # Progress
     "Progress",
     "ProgressStats",

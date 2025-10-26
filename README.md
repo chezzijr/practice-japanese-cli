@@ -44,6 +44,12 @@ A powerful command-line application for learning Japanese with intelligent space
   - Vietnamese and English translations
   - Sino-Vietnamese readings for kanji (Han Viet)
 
+- **MCQ (Multiple Choice) Review**: Alternative review mode with intelligent questions
+  - Dynamic question generation with 4 distractor strategies
+  - Independent FSRS scheduling from flashcard reviews
+  - Question types: word-to-meaning, meaning-to-word, or mixed
+  - Statistics tracking: accuracy rates, vocab vs kanji performance, selection bias detection
+
 - **Progress Tracking**: Monitor your learning journey
   - JLPT level tracking (N5, N4, N3, N2, N1)
   - Learning statistics and review history
@@ -140,7 +146,22 @@ uv run japanese-cli flashcard review --level n5
 uv run japanese-cli flashcard review --limit 20
 ```
 
-### 5. Track Your Progress
+### 5. Try MCQ (Multiple Choice) Review
+```bash
+# Basic MCQ review
+uv run japanese-cli flashcard mcq
+
+# MCQ for N5 vocabulary only
+uv run japanese-cli flashcard mcq --type vocab --level n5 --limit 10
+
+# Mixed question types (word-to-meaning and meaning-to-word)
+uv run japanese-cli flashcard mcq --question-type mixed
+
+# Review both vocab and kanji with English meanings
+uv run japanese-cli flashcard mcq --type both --language en
+```
+
+### 6. Track Your Progress
 ```bash
 # View your progress dashboard
 uv run japanese-cli progress show
@@ -164,9 +185,11 @@ uv run japanese-cli progress stats --range 30d
 - `vocabulary`: Word storage with readings, meanings, and JLPT levels
 - `kanji`: Kanji characters with on/kun readings and Vietnamese readings
 - `grammar_points`: Grammar explanations and examples
-- `reviews`: FSRS state tracking for each card
+- `reviews`: FSRS state tracking for flashcard reviews
+- `review_history`: Complete flashcard review history for analytics
+- `mcq_reviews`: FSRS state tracking for MCQ reviews (independent scheduling)
+- `mcq_review_history`: MCQ review history with selected options and correctness
 - `progress`: User progress and statistics
-- `review_history`: Complete review history for analytics
 
 ### FSRS Algorithm
 This application uses FSRS (Free Spaced Repetition Scheduler), a modern alternative to the SM-2 algorithm used by Anki. FSRS:
