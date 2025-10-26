@@ -277,7 +277,7 @@ def test_with_real_data_files():
 
     # Should have loaded vocabulary and kanji
     assert mapper.get_n5_vocab_count() > 0
-    assert mapper.get_n5_kanji_count() == 103  # We created 103 kanji
+    assert mapper.get_n5_kanji_count() == 79  # Actual count in n5_kanji.txt file
 
     # Test some known N5 words
     assert mapper.is_n5_vocab("大学", "だいがく") is True

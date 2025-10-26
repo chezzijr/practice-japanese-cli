@@ -6,7 +6,7 @@ for displaying vocabulary and kanji flashcards.
 """
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from rich.table import Table
 from rich.panel import Panel
 
@@ -92,7 +92,7 @@ class TestFormatVocabularyTable:
             item_id=1,
             item_type=ItemType.VOCAB,
             fsrs_card_state={},
-            due_date=datetime.now() + timedelta(days=5),
+            due_date=datetime.now(timezone.utc) + timedelta(days=5),
             review_count=10
         )
 
@@ -128,7 +128,7 @@ class TestFormatVocabularyTable:
             item_id=1,
             item_type=ItemType.VOCAB,
             fsrs_card_state={},
-            due_date=datetime.now() - timedelta(hours=1),  # Due in the past
+            due_date=datetime.now(timezone.utc) - timedelta(hours=1),  # Due in the past
             review_count=5
         )
 
@@ -201,7 +201,7 @@ class TestFormatKanjiTable:
             item_id=1,
             item_type=ItemType.KANJI,
             fsrs_card_state={},
-            due_date=datetime.now() + timedelta(days=3),
+            due_date=datetime.now(timezone.utc) + timedelta(days=3),
             review_count=8
         )
 
@@ -268,7 +268,7 @@ class TestFormatVocabularyPanel:
             item_id=42,
             item_type=ItemType.VOCAB,
             fsrs_card_state={},
-            due_date=datetime.now() + timedelta(days=7),
+            due_date=datetime.now(timezone.utc) + timedelta(days=7),
             review_count=15
         )
 
@@ -304,7 +304,7 @@ class TestFormatVocabularyPanel:
             item_id=42,
             item_type=ItemType.VOCAB,
             fsrs_card_state={},
-            due_date=datetime.now() - timedelta(hours=2),
+            due_date=datetime.now(timezone.utc) - timedelta(hours=2),
             review_count=3
         )
 
@@ -353,7 +353,7 @@ class TestFormatKanjiPanel:
             item_id=123,
             item_type=ItemType.KANJI,
             fsrs_card_state={},
-            due_date=datetime.now() + timedelta(days=2),
+            due_date=datetime.now(timezone.utc) + timedelta(days=2),
             review_count=20
         )
 

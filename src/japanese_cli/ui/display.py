@@ -244,10 +244,11 @@ def format_vocabulary_panel(vocab: Vocabulary, review: Optional[Review] = None) 
         content_lines.append("")
         content_lines.append("[bold]Review Status:[/bold]")
         due_date = review.due_date
-        if due_date <= datetime.now():
+        now = datetime.now(timezone.utc)
+        if due_date <= now:
             content_lines.append(f"  [red]Due now![/red]")
         else:
-            days = (due_date - datetime.now()).days
+            days = (due_date - now).days
             content_lines.append(f"  Next review in [yellow]{days}[/yellow] days")
         content_lines.append(f"  Total reviews: {review.review_count}")
 
@@ -329,10 +330,11 @@ def format_kanji_panel(kanji: Kanji, review: Optional[Review] = None) -> Panel:
         content_lines.append("")
         content_lines.append("[bold]Review Status:[/bold]")
         due_date = review.due_date
-        if due_date <= datetime.now():
+        now = datetime.now(timezone.utc)
+        if due_date <= now:
             content_lines.append(f"  [red]Due now![/red]")
         else:
-            days = (due_date - datetime.now()).days
+            days = (due_date - now).days
             content_lines.append(f"  Next review in [yellow]{days}[/yellow] days")
         content_lines.append(f"  Total reviews: {review.review_count}")
 

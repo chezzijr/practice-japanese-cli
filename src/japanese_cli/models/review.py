@@ -5,7 +5,7 @@ Provides data validation, serialization, and FSRS integration for spaced repetit
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -43,8 +43,8 @@ class Review(BaseModel):
     due_date: datetime = Field(..., description="Next review date")
     last_reviewed: Optional[datetime] = Field(None, description="Last review timestamp")
     review_count: int = Field(default=0, ge=0, description="Total reviews completed")
-    created_at: datetime = Field(default_factory=lambda: datetime.now())
-    updated_at: datetime = Field(default_factory=lambda: datetime.now())
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     @field_validator('created_at', 'updated_at', 'due_date', 'last_reviewed', mode='before')
     @classmethod
@@ -209,7 +209,7 @@ class ReviewHistory(BaseModel):
     review_id: int = Field(..., ge=1, description="Foreign key to reviews table")
     rating: int = Field(..., ge=1, le=4, description="FSRS rating (1-4)")
     duration_ms: Optional[int] = Field(None, ge=0, description="Review duration in milliseconds")
-    reviewed_at: datetime = Field(default_factory=lambda: datetime.now())
+    reviewed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     @field_validator('reviewed_at', mode='before')
     @classmethod
