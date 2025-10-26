@@ -10,6 +10,10 @@ from .display import (
     format_kanji_table,
     format_vocabulary_panel,
     format_kanji_panel,
+    display_card_question,
+    display_card_answer,
+    prompt_rating,
+    display_session_summary,
     JLPT_COLORS,
 )
 
@@ -48,6 +52,10 @@ __all__ = [
     "format_kanji_table",
     "format_vocabulary_panel",
     "format_kanji_panel",
+    "display_card_question",
+    "display_card_answer",
+    "prompt_rating",
+    "display_session_summary",
     "JLPT_COLORS",
     # Furigana utilities
     "render_furigana",
