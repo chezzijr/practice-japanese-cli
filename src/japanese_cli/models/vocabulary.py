@@ -180,5 +180,5 @@ class Vocabulary(BaseModel):
         return data
 
     model_config = ConfigDict(
-        json_encoders={datetime: lambda v: v.isoformat()}
+        # Pydantic v2 handles datetime serialization automatically
     )

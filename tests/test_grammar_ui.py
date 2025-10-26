@@ -344,7 +344,7 @@ class TestPromptGrammarData:
     def test_prompt_grammar_data_no_examples(
         self, mock_console, mock_confirm, mock_example, mock_ask
     ):
-        """Test that grammar point with no examples returns None."""
+        """Test that user can cancel when no examples provided."""
         mock_ask.side_effect = [
             "Test",  # title
             "",  # structure
@@ -352,16 +352,12 @@ class TestPromptGrammarData:
             "",  # jlpt_level
         ]
         mock_example.return_value = None  # User cancels example input
-        # First confirm says "continue with 0 examples?" - False means try again
-        # This would cause infinite loop, so let's test a different scenario
-        # Actually, we need to skip this test or fix the implementation
-        # For now, let's just test that it requires at least one example
-        mock_confirm.side_effect = [False, False, False]  # Keep saying no to "continue with 0 examples"
+        # First confirm: "Try again?" - False means cancel
+        mock_confirm.return_value = False  # User says no to trying again
 
-        # This will cause an infinite loop in the current implementation
-        # So we need to use a timeout or fix the implementation
-        # For now, let's skip this test
-        pytest.skip("Test causes infinite loop - implementation needs fixing")
+        result = prompt_grammar_data()
+
+        assert result is None  # Should return None when user cancels
 
     @patch('src.japanese_cli.ui.prompts.Prompt.ask')
     @patch('src.japanese_cli.ui.prompts.prompt_example_data')

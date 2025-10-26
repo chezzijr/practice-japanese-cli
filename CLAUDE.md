@@ -577,324 +577,64 @@ When implementing features, consider:
 
 ## Current Implementation Status
 
-**Phase 1: Project Setup & Documentation** - ✅ COMPLETE (2025-10-26)
+**Progress**: 9.3/10 phases complete (93%) | **Tests**: 466 passing | **Coverage**: 79% overall | **Last Updated**: 2025-10-26
 
-### Completed:
-- ✅ README.md with comprehensive user documentation
-- ✅ CLAUDE.md with full project context and architecture (updated with FSRS 6.3.0 API)
-- ✅ PLAN.md with detailed 10-phase implementation roadmap
-- ✅ pyproject.toml configured with all dependencies
-- ✅ Complete project structure (src/japanese_cli/ with all module directories)
-- ✅ Basic CLI entry point (`japanese-cli` command)
-- ✅ Git repository initialized with proper .gitignore
-- ✅ All dependencies installed and verified (fsrs 6.3.0, typer 0.20.0, rich 14.2.0, etc.)
+### Implementation Progress Table
 
-**Phase 2: Database Layer** - ✅ COMPLETE (2025-10-26)
+| Phase | Status | Description | Key Stats |
+|-------|--------|-------------|-----------|
+| 1 | ✅ | Project Setup & Documentation | All docs, dependencies, structure complete |
+| 2 | ✅ | Database Layer | 6 tables, 8 indexes, migrations, CRUD - 76 tests, 80% coverage |
+| 3 | ✅ | Data Models | Pydantic v2 models with validation - 40 tests, 92% coverage |
+| 4 | ✅ | FSRS Integration | Scheduler, review workflow - 37 tests, 94% coverage |
+| 5 | ✅ | Data Import System | JMdict/KANJIDIC2 parsers - 23 tests, 98% coverage |
+| 6 | ✅ | Flashcard CLI - Add/List | UI utilities, CRUD commands - 106 tests, 97% coverage |
+| 7 | ✅ | Flashcard CLI - Review | Interactive sessions, FSRS - 19 tests, 82% overall |
+| 8 | ✅ | Progress Tracking | Dashboard, stats, analytics - Manual testing verified |
+| 9 | ✅ | Grammar Points | Grammar management - 22 tests |
+| 10 | 🔨 | Polish & Testing | 4/13 tasks done: Stats tests (100%), UI tests (96%), Pydantic v2 migration, bug fixes |
 
-### Completed:
-- ✅ Database schema (database/schema.py) - 6 tables with 8 indexes
-- ✅ Connection management (database/connection.py) - context managers, transactions
-- ✅ Migration system (database/migrations.py) - PRAGMA user_version tracking
-- ✅ Query utilities (database/queries.py) - full CRUD for all models
-- ✅ Database __init__.py - exports all key functions
-- ✅ Functional `init` command - creates DB, runs migrations, initializes progress
-- ✅ FSRS integration verified - Card serialization, review scheduling tested
-
-### Database Tables:
-- `vocabulary` - Japanese words with readings, meanings, JLPT levels
-- `kanji` - Kanji characters with on/kun readings, Vietnamese readings
-- `grammar_points` - Grammar explanations with examples
-- `reviews` - FSRS card state for each flashcard
-- `review_history` - Complete review history for analytics
-- `progress` - User progress tracking and statistics
-
-### Working Commands:
-```bash
-uv run japanese-cli --help    # Show available commands
-uv run japanese-cli version   # Show version information
-uv run japanese-cli init      # Initialize database (fully functional!)
-```
-
-### Verified Features:
-- ✅ Database creation at `data/japanese.db`
-- ✅ Schema migrations with version tracking
-- ✅ CRUD operations for vocabulary and kanji
-- ✅ FSRS Card state persistence (using Card.to_dict() / Card.from_dict())
-- ✅ Review scheduling and due card queries
-- ✅ Progress initialization and tracking
-- ✅ Idempotent init command (safe to run multiple times)
-
-**Phase 3: Data Models** - ✅ COMPLETE (2025-10-26)
-
-### Completed:
-- ✅ Pydantic v2 models for all entities (Vocabulary, Kanji, GrammarPoint, Review, Progress)
-- ✅ Field validators for JLPT levels, ratings, character lengths
-- ✅ Model validators for cross-field validation
-- ✅ Database conversion methods (from_db_row, to_db_dict)
-- ✅ JSON field serialization/deserialization
-- ✅ FSRS Card integration in Review model
-- ✅ Nested models (Example, ProgressStats)
-- ✅ Enum support (ItemType)
-- ✅ 40 comprehensive tests, 92% coverage
-
-### Models Available:
-```python
-from japanese_cli.models import (
-    Vocabulary,
-    Kanji,
-    Example,
-    GrammarPoint,
-    ItemType,
-    Review,
-    ReviewHistory,
-    Progress,
-    ProgressStats
-)
-```
-
-**Phase 4: FSRS Integration** - ✅ COMPLETE (2025-10-26)
-
-### Completed:
-- ✅ FSRSManager class (srs/fsrs.py) - FSRS wrapper with configurable parameters
-- ✅ ReviewScheduler class (srs/scheduler.py) - high-level review coordinator
-- ✅ Rating conversion utilities (int ↔ Rating enum)
-- ✅ Full review workflow: create → review → update → history
-- ✅ Filtering by JLPT level, item type, and limit
-- ✅ Review statistics and counting methods
-- ✅ 37 comprehensive tests, 94% coverage
-
-### SRS API Available:
-```python
-from japanese_cli.srs import FSRSManager, ReviewScheduler
-
-# Create scheduler (uses default FSRS parameters)
-scheduler = ReviewScheduler()
-
-# Custom FSRS configuration
-custom_fsrs = FSRSManager(desired_retention=0.95)
-scheduler = ReviewScheduler(fsrs_manager=custom_fsrs)
-
-# Create review for vocabulary/kanji
-review_id = scheduler.create_new_review(vocab_id, ItemType.VOCAB)
-
-# Get due reviews with filters
-due_reviews = scheduler.get_due_reviews(limit=20, jlpt_level='n5')
-
-# Process review (complete workflow)
-updated_review = scheduler.process_review(
-    review_id=review_id,
-    rating=3,  # Good
-    duration_ms=5000
-)
-
-# Get review statistics
-total_reviews = scheduler.get_review_count()
-n5_vocab_reviews = scheduler.get_review_count(jlpt_level='n5', item_type=ItemType.VOCAB)
-```
-
-### Key Features:
-- Simple API for CLI layer - no manual FSRS Card management needed
-- Automatic database persistence and transaction handling
-- Review history automatically recorded
-- Comprehensive error handling (invalid items, ratings)
-- Full type hints and documentation
-- Reuses existing database layer (thin wrapper)
-
-**Phase 5: Data Import System** - ✅ COMPLETE (2025-10-26)
-
-### Completed:
-- ✅ JLPTLevelMapper class (importers/jlpt.py) - 174 lines, 98% coverage
-- ✅ JMdictImporter class (importers/jmdict.py) - 299 lines, streaming XML parser
-- ✅ KanjidicImporter class (importers/kanjidic.py) - 293 lines, streaming XML parser
-- ✅ Import utilities (importers/utils.py) - 193 lines, download/decompress/POS mapping
-- ✅ CLI import commands (cli/import_data.py) - 146 lines
-- ✅ JLPT reference files - n5_vocab.csv (81 words), n5_kanji.txt (103 chars)
-- ✅ Sample XML fixtures for testing (JMdict and KANJIDIC2)
-- ✅ 23 comprehensive tests (17 JLPT mapper, 6 integration)
-
-### Import Commands Available:
-```bash
-japanese-cli import n5              # Import both vocab and kanji
-japanese-cli import n5 --vocab      # Import vocabulary only
-japanese-cli import n5 --kanji      # Import kanji only
-japanese-cli import n5 --force      # Force re-download data files
-```
-
-### Key Features:
-- **Streaming XML parsing** with lxml.etree.iterparse() for memory efficiency
-- **Rich progress bars** for download, parsing, and database operations
-- **Duplicate detection** with smart update logic
-- **JLPT N5 filtering** using manual reference lists
-- **Error handling** with retry logic for downloads
-- **Part of speech mapping** from JMdict entities
-
-**Phase 6: Flashcard CLI - Add & List** - ✅ COMPLETE (2025-10-26)
-
-### Completed:
-- ✅ UI utilities - 813 lines total
-  - ui/furigana.py (135 lines) - Furigana rendering with compact/detailed styles
-  - ui/display.py (352 lines) - Rich tables and panels for vocab/kanji
-  - ui/prompts.py (282 lines) - Interactive data collection with validation
-  - ui/__init__.py (44 lines) - Clean exports
-- ✅ Flashcard CLI (cli/flashcard.py) - 453 lines with 4 commands
-- ✅ Manual end-to-end testing with real N5 data (81 vocab, 103 kanji)
-- ✅ Comprehensive test suite - 106 tests with 97% coverage on UI modules
-  - test_ui_furigana.py (23 tests) - 100% coverage on furigana.py
-  - test_ui_display.py (29 tests) - 99% coverage on display.py
-  - test_ui_prompts.py (25 tests) - 93% coverage on prompts.py
-  - test_flashcard_cli.py (29 tests) - 79% coverage on flashcard.py
-
-### Flashcard Commands Available:
-```bash
-# List flashcards
-japanese-cli flashcard list --type vocab                 # All vocabulary
-japanese-cli flashcard list --type kanji --level n5      # N5 kanji only
-japanese-cli flashcard list --type vocab --limit 20      # Show 20 items
-
-# Show detailed view
-japanese-cli flashcard show 75 --type vocab              # Detailed vocab view
-japanese-cli flashcard show 1 --type kanji               # Detailed kanji view
-
-# Add new flashcards (interactive)
-japanese-cli flashcard add --type vocab                  # Add vocabulary
-japanese-cli flashcard add --type kanji                  # Add kanji
-
-# Edit existing flashcards (interactive)
-japanese-cli flashcard edit 75 --type vocab              # Edit vocab
-japanese-cli flashcard edit 1 --type kanji               # Edit kanji
-```
-
-### Key Features:
-- **Rich UI components** - Beautiful tables with furigana: 単語[たんご]
-- **JLPT color coding** - n5=green, n4=cyan, n3=yellow, n2=magenta, n1=red
-- **Interactive prompts** - Pydantic validation at input time
-- **Review integration** - Display due dates, auto-add to review queue
-- **Vietnamese support** - UTF-8 encoding, Vietnamese priority in displays
-- **Flexible filtering** - By JLPT level, item type, pagination (limit/offset)
-
-**Phase 7: Flashcard CLI - Review Session** - ✅ COMPLETE (2025-10-26)
-
-### Completed:
-- ✅ UI components (ui/display.py) - 4 new functions for review session
-- ✅ Review command (cli/flashcard.py) - Interactive session with FSRS
-- ✅ Rating prompts (1-4) with validation
-- ✅ Session summary with statistics (accuracy, time, next reviews)
-- ✅ Comprehensive test suite (tests/test_review_session.py) - 19 tests
-- ✅ All tests passing (387 total tests)
-- ✅ 82% overall project coverage, 98% on new UI code
-- ✅ Manual end-to-end testing verified
-
-### Review Commands Available:
-```bash
-japanese-cli flashcard review                    # Review all due cards
-japanese-cli flashcard review --limit 10        # Review max 10 cards
-japanese-cli flashcard review --level n5        # Review N5 cards only
-japanese-cli flashcard review --type vocab      # Review vocabulary only
-```
-
-### Key Features:
-- **Question → Answer flow** - Vietnamese meaning → Japanese word (production practice)
-- **Rich UI** - Beautiful panels, tables, color-coded JLPT levels
-- **FSRS integration** - Automatic state updates and interval calculations
-- **Time tracking** - Millisecond precision for each card and total session
-- **Review history** - All reviews recorded in database with rating and duration
-- **Progress feedback** - Clear indication of current position (Card 5/20)
-- **Early exit** - Ctrl+C saves all reviewed cards and exits cleanly
-
-**Phase 8: Progress Tracking** - ✅ COMPLETE (2025-10-26)
-
-### Completed:
-- ✅ Statistics calculation module (srs/statistics.py) - 499 lines, 9 functions
-- ✅ Database query extensions (queries.py) - `update_progress_level()`
-- ✅ UI display components (ui/display.py) - 3 new functions (~305 lines)
-  - `display_progress_dashboard()` - Real-time statistics panel
-  - `display_statistics()` - Detailed analytics with bar charts
-  - `format_relative_date()` - Human-readable dates
-- ✅ CLI progress commands (cli/progress.py) - 273 lines, 3 commands
-- ✅ All commands manually tested and verified working
-- ✅ Progress model bug fixes (NULL milestones handling)
-
-### Progress Commands Available:
-```bash
-japanese-cli progress show          # Dashboard with real-time stats
-japanese-cli progress set-level n4  # Update target JLPT level
-japanese-cli progress set-level n4 --current  # Update current level
-japanese-cli progress stats         # All-time detailed statistics
-japanese-cli progress stats --range 7d   # Last 7 days stats
-japanese-cli progress stats --range 30d  # Last 30 days stats
-```
-
-### Key Features:
-- **Real-time Statistics** - All data calculated on-demand from database
-- **JLPT Level Management** - Easy switching between current/target levels
-- **Visual Progress Indicators** - Emojis, colors, ASCII bar charts
-- **Study Streak Tracking** - With 🔥 indicator for 7+ day streaks
-- **Mastery Tracking** - Based on FSRS stability threshold (21 days)
-- **Retention Rate** - Color-coded (green ≥85%, yellow ≥70%, red <70%)
-- **Time-based Filtering** - Stats for 7d/30d/all-time periods
-- **Most Reviewed Items** - Track which cards need attention
-- **Daily Activity Visualization** - ASCII bar charts for review patterns
-
-### Statistics Module Functions:
-- `calculate_vocab_counts_by_level()` - Count vocabulary by JLPT level
-- `calculate_kanji_counts_by_level()` - Count kanji by JLPT level
-- `calculate_mastered_items()` - Items with stability ≥ 21 days
-- `calculate_retention_rate()` - (Good + Easy) / Total × 100%
-- `calculate_average_review_duration()` - Average time per card
-- `aggregate_daily_review_counts()` - Reviews grouped by date
-- `get_most_reviewed_items()` - Top N items by review count
-- `get_reviews_by_date_range()` - Filter reviews by date
-
-### Integration Testing Results:
-✅ All three commands tested and working:
-- `progress show` - Displays accurate statistics (620 vocab, 103 kanji, 100% retention)
-- `progress set-level n4` - Successfully updates target level
-- `progress stats --range all` - Shows summary, daily activity, top items
-
-**Phase 9: Grammar Points** - ✅ COMPLETE (2025-10-26)
-
-### Completed:
-- ✅ CLI grammar commands (cli/grammar.py) - 252 lines, 4 commands (add, list, show, edit)
-- ✅ Grammar UI components - 345 lines added to ui/prompts.py and ui/display.py
-  - `prompt_grammar_data()` - Interactive grammar data collection with validation
-  - `prompt_example_data()` - Collect individual examples (JP, VI, EN)
-  - `format_grammar_table()` - Rich table with ID, Title, Structure, JLPT, Examples
-  - `format_grammar_panel()` - Detailed panel with all grammar information
-- ✅ Comprehensive test suite - 22 tests (21 passing, 1 skipped for edge case)
-- ✅ Integration with existing system verified
-- ✅ Total project tests: **409 passing**
-
-### Grammar Commands Available:
-```bash
-japanese-cli grammar add                    # Interactive grammar point creation
-japanese-cli grammar list                   # List all grammar points
-japanese-cli grammar list --level n5        # Filter by JLPT level
-japanese-cli grammar show 1                 # Show detailed grammar point
-japanese-cli grammar edit 1                 # Edit existing grammar point
-```
-
-### Key Features:
-- Minimum 1 example required (recommended 3)
-- JLPT level color-coding (n5=green, n4=cyan, n3=yellow, n2=magenta, n1=red)
-- Vietnamese-first design (Vietnamese translation required)
-- Optional English translations
-- Related grammar cross-references support
-- Pydantic validation at input time
-- Rich formatting with proper Japanese character display
-
-### Integration Testing Results:
-✅ All four commands tested and working:
-- `grammar add` - Successfully creates grammar points with examples
-- `grammar list` - Displays table with filtering by JLPT level
-- `grammar show 1` - Shows detailed panel with examples and Vietnamese/English translations
-- `grammar edit 1` - Pre-fills values for editing
-
-**Next Phase**: Phase 10 - Polish & Testing
-- Fix edge case bug (infinite loop in prompt_grammar_data)
-- Improve error handling across all modules
-- Add integration tests for CLI workflows
+### Phase 10 Remaining Tasks
+- CLI integration tests (grammar, progress, import)
+- Error handling improvements (database, network, file system)
+- Documentation updates (README Phase 10 status, troubleshooting section)
 - Performance testing with large datasets
-- Documentation updates (README, troubleshooting)
+- UX polish (help text, color consistency)
 
-**Last Updated**: 2025-10-26
-**Current Status**: Phase 9 Complete - Full grammar management functional
+### Test Suite Overview
+- **Total**: 466 tests passing, 0 skipped, 0 warnings
+- **Coverage**: 79% overall (up from 70%)
+- **Top Modules**: statistics.py (100%), ui/display.py (96%), scheduler.py (95%), fsrs.py (92%)
+
+### Available CLI Commands
+
+See PLAN.md "Current Status Summary" section for complete command reference. Key command groups:
+- **Setup**: `init`, `--help`, `version`
+- **Import**: `import n5 [--vocab] [--kanji] [--force]`
+- **Flashcards**: `flashcard {list|show|add|edit|review}` with filters
+- **Progress**: `progress {show|set-level|stats}` with date ranges
+- **Grammar**: `grammar {add|list|show|edit}` with JLPT filtering
+
+### Key Modules and APIs
+
+**Models** (src/japanese_cli/models/):
+```python
+from japanese_cli.models import Vocabulary, Kanji, GrammarPoint, Review, Progress, ItemType
+```
+
+**SRS Scheduler** (src/japanese_cli/srs/):
+```python
+from japanese_cli.srs import ReviewScheduler
+scheduler = ReviewScheduler()
+scheduler.process_review(review_id, rating=3, duration_ms=5000)
+```
+
+**Database** (src/japanese_cli/database/):
+- 6 tables: vocabulary, kanji, grammar_points, reviews, review_history, progress
+- CRUD operations via queries.py
+- Migration system with PRAGMA user_version
+
+**Statistics** (src/japanese_cli/srs/statistics.py):
+- 9 functions for vocab/kanji counts, mastered items, retention rate, time tracking, daily aggregation
+
+For detailed implementation notes on each phase, see PLAN.md.

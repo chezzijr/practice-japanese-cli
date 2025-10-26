@@ -187,7 +187,7 @@ class Review(BaseModel):
         )
 
     model_config = ConfigDict(
-        json_encoders={datetime: lambda v: v.isoformat() if v else None}
+        # Pydantic v2 handles datetime serialization automatically
     )
 
 
@@ -273,5 +273,5 @@ class ReviewHistory(BaseModel):
         return rating_map[self.rating]
 
     model_config = ConfigDict(
-        json_encoders={datetime: lambda v: v.isoformat()}
+        # Pydantic v2 handles datetime serialization automatically
     )

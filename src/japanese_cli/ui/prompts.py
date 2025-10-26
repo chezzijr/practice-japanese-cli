@@ -831,7 +831,11 @@ def prompt_grammar_data(existing: Optional[GrammarPoint] = None) -> Optional[dic
                     # Otherwise, try again
                 else:
                     console.print("[yellow]At least one example is required[/yellow]")
-                    # Try again
+                    # Give user option to cancel entire grammar point creation
+                    if not confirm_action("Try again?", default=True):
+                        console.print("[dim]Cancelling grammar point creation[/dim]")
+                        return None
+                    # Otherwise, try again
 
         # Ensure at least one example
         if not examples or len(examples) == 0:

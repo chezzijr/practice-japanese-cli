@@ -242,8 +242,5 @@ class Progress(BaseModel):
             self.milestones.append(milestone)
 
     model_config = ConfigDict(
-        json_encoders={
-            datetime: lambda v: v.isoformat(),
-            date: lambda v: v.isoformat() if v else None
-        }
+        # Pydantic v2 handles datetime/date serialization automatically
     )

@@ -457,3 +457,265 @@ class TestDisplayEdgeCases:
 
         table = format_vocabulary_table([vocab])
         assert isinstance(table, Table)
+
+
+# Tests for Progress Display Functions
+
+class TestDisplayProgressDashboard:
+    """Tests for display_progress_dashboard function."""
+
+    def test_display_basic_dashboard(self):
+        """Test displaying progress dashboard with typical data."""
+        from japanese_cli.models import Progress, ProgressStats
+        from japanese_cli.ui.display import display_progress_dashboard
+        from datetime import date
+
+        progress = Progress(
+            id=1,
+            user_id="default",
+            current_level="n5",
+            target_level="n4",
+            stats=ProgressStats(
+                total_vocab=100,
+                total_kanji=50,
+                mastered_vocab=20,
+                mastered_kanji=10,
+                total_reviews=500,
+                average_retention=0.855  # Fraction not percentage
+            ),
+            streak_days=5,
+            last_review_date=date.today()
+        )
+
+        vocab_counts = {"n5": 80, "n4": 20, "total": 100}
+        kanji_counts = {"n5": 45, "n4": 5, "total": 50}
+        mastered_counts = {"vocab": 20, "kanji": 10, "total": 30}
+
+        # Should not raise any exceptions
+        display_progress_dashboard(
+            progress=progress,
+            vocab_counts=vocab_counts,
+            kanji_counts=kanji_counts,
+            mastered_counts=mastered_counts,
+            due_today=15,
+            total_reviews=500,
+            retention_rate=85.5
+        )
+
+    def test_display_dashboard_high_streak(self):
+        """Test dashboard with high streak (should show fire emoji)."""
+        from japanese_cli.models import Progress, ProgressStats
+        from japanese_cli.ui.display import display_progress_dashboard
+        from datetime import date
+
+        progress = Progress(
+            id=1,
+            current_level="n4",
+            target_level="n3",
+            stats=ProgressStats(
+                total_vocab=500,
+                total_kanji=200,
+                mastered_vocab=100,
+                mastered_kanji=50,
+                total_reviews=2000,
+                average_retention=0.92  # Fraction not percentage
+            ),
+            streak_days=15,  # High streak (>= 7 should show 🔥)
+            last_review_date=date.today()
+        )
+
+        vocab_counts = {"n4": 300, "n3": 200, "total": 500}
+        kanji_counts = {"n4": 120, "n3": 80, "total": 200}
+        mastered_counts = {"vocab": 100, "kanji": 50, "total": 150}
+
+        display_progress_dashboard(
+            progress=progress,
+            vocab_counts=vocab_counts,
+            kanji_counts=kanji_counts,
+            mastered_counts=mastered_counts,
+            due_today=25,
+            total_reviews=2000,
+            retention_rate=92.0
+        )
+
+    def test_display_dashboard_invalid_type(self):
+        """Test that TypeError is raised for invalid progress type."""
+        from japanese_cli.ui.display import display_progress_dashboard
+
+        with pytest.raises(TypeError, match="Expected Progress model"):
+            display_progress_dashboard(
+                progress={"not": "a progress object"},  # Invalid type
+                vocab_counts={"n5": 10},
+                kanji_counts={"n5": 5},
+                mastered_counts={"total": 0},
+                due_today=0,
+                total_reviews=0,
+                retention_rate=0.0
+            )
+
+
+class TestDisplayStatistics:
+    """Tests for display_statistics function."""
+
+    def test_display_basic_statistics(self):
+        """Test displaying statistics with typical data."""
+        from japanese_cli.ui.display import display_statistics
+
+        display_statistics(
+            total_reviews=150,
+            retention_rate=85.5,
+            avg_duration_seconds=4.2,
+            daily_counts={
+                "2025-10-20": 20,
+                "2025-10-21": 25,
+                "2025-10-22": 30,
+                "2025-10-23": 15,
+                "2025-10-24": 20,
+                "2025-10-25": 25,
+                "2025-10-26": 15
+            },
+            most_reviewed=[
+                {"item_id": 1, "item_type": "vocab", "word": "私", "review_count": 15},
+                {"item_id": 2, "item_type": "kanji", "character": "語", "review_count": 12},
+                {"item_id": 3, "item_type": "vocab", "word": "猫", "review_count": 10}
+            ],
+            date_range_label="Last 7 days"
+        )
+
+    def test_display_statistics_high_retention(self):
+        """Test statistics with high retention rate (should be green)."""
+        from japanese_cli.ui.display import display_statistics
+
+        display_statistics(
+            total_reviews=500,
+            retention_rate=95.0,  # >= 85% (green)
+            avg_duration_seconds=3.5,
+            daily_counts={"2025-10-26": 50},
+            most_reviewed=[],
+            date_range_label="Today"
+        )
+
+    def test_display_statistics_medium_retention(self):
+        """Test statistics with medium retention rate (should be yellow)."""
+        from japanese_cli.ui.display import display_statistics
+
+        display_statistics(
+            total_reviews=200,
+            retention_rate=75.0,  # >= 70% and < 85% (yellow)
+            avg_duration_seconds=5.0,
+            daily_counts={"2025-10-26": 20},
+            most_reviewed=[],
+            date_range_label="All time"
+        )
+
+    def test_display_statistics_low_retention(self):
+        """Test statistics with low retention rate (should be red)."""
+        from japanese_cli.ui.display import display_statistics
+
+        display_statistics(
+            total_reviews=100,
+            retention_rate=60.0,  # < 70% (red)
+            avg_duration_seconds=6.5,
+            daily_counts={"2025-10-26": 10},
+            most_reviewed=[],
+            date_range_label="Last 30 days"
+        )
+
+    def test_display_statistics_no_reviews(self):
+        """Test statistics with no reviews."""
+        from japanese_cli.ui.display import display_statistics
+
+        display_statistics(
+            total_reviews=0,
+            retention_rate=0.0,
+            avg_duration_seconds=0.0,
+            daily_counts={},
+            most_reviewed=[],
+            date_range_label="All time"
+        )
+
+    def test_display_statistics_with_bar_chart(self):
+        """Test statistics with daily activity bar chart."""
+        from japanese_cli.ui.display import display_statistics
+
+        # Create daily counts spanning a week
+        daily_counts = {
+            f"2025-10-{20+i}": (i+1) * 10  # Varying counts
+            for i in range(7)
+        }
+
+        display_statistics(
+            total_reviews=280,
+            retention_rate=88.0,
+            avg_duration_seconds=4.0,
+            daily_counts=daily_counts,
+            most_reviewed=[
+                {"item_id": 1, "item_type": "vocab", "word": "単語", "review_count": 25}
+            ],
+            date_range_label="Last 7 days"
+        )
+
+
+class TestFormatRelativeDate:
+    """Tests for format_relative_date function."""
+
+    def test_format_today(self):
+        """Test formatting today's date."""
+        from japanese_cli.ui.display import format_relative_date
+        from datetime import date
+
+        today = date.today()
+        result = format_relative_date(today)
+
+        assert "Today" in result
+
+    def test_format_yesterday(self):
+        """Test formatting yesterday's date."""
+        from japanese_cli.ui.display import format_relative_date
+        from datetime import date, timedelta
+
+        yesterday = date.today() - timedelta(days=1)
+        result = format_relative_date(yesterday)
+
+        assert "Yesterday" in result
+
+    def test_format_recent_past(self):
+        """Test formatting a recent past date (2-6 days ago)."""
+        from japanese_cli.ui.display import format_relative_date
+        from datetime import date, timedelta
+
+        three_days_ago = date.today() - timedelta(days=3)
+        result = format_relative_date(three_days_ago)
+
+        assert "3 days ago" in result
+
+    def test_format_one_week_ago(self):
+        """Test formatting exactly one week ago."""
+        from japanese_cli.ui.display import format_relative_date
+        from datetime import date, timedelta
+
+        one_week_ago = date.today() - timedelta(days=7)
+        result = format_relative_date(one_week_ago)
+
+        assert "1 week ago" in result or "7 days ago" in result
+
+    def test_format_multiple_weeks_ago(self):
+        """Test formatting multiple weeks ago."""
+        from japanese_cli.ui.display import format_relative_date
+        from datetime import date, timedelta
+
+        three_weeks_ago = date.today() - timedelta(days=21)
+        result = format_relative_date(three_weeks_ago)
+
+        assert "3 weeks ago" in result or "21 days ago" in result
+
+    def test_format_absolute_date(self):
+        """Test formatting a date far in the past (shows absolute date)."""
+        from japanese_cli.ui.display import format_relative_date
+        from datetime import date, timedelta
+
+        long_ago = date.today() - timedelta(days=60)
+        result = format_relative_date(long_ago)
+
+        # Should contain the actual date
+        assert str(long_ago) in result or "days ago" in result or "weeks ago" in result
