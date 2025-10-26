@@ -40,7 +40,9 @@ from .queries import (
     list_kanji,
     list_vocabulary,
     search_kanji,
+    search_kanji_by_reading,
     search_vocabulary,
+    search_vocabulary_by_reading,
     update_grammar,
     update_kanji,
     update_progress,
@@ -70,6 +72,7 @@ __all__ = [
     "get_vocabulary_by_id",
     "list_vocabulary",
     "search_vocabulary",
+    "search_vocabulary_by_reading",
     "update_vocabulary",
     "delete_vocabulary",
     # Kanji queries
@@ -78,6 +81,7 @@ __all__ = [
     "get_kanji_by_character",
     "list_kanji",
     "search_kanji",
+    "search_kanji_by_reading",
     "update_kanji",
     "delete_kanji",
     # Grammar queries

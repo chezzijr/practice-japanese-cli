@@ -178,6 +178,40 @@ def search_vocabulary(
         return [dict(row) for row in cursor.fetchall()]
 
 
+def search_vocabulary_by_reading(
+    reading: str,
+    exact_match: bool = True,
+    db_path: Path | None = None
+) -> list[dict[str, Any]]:
+    """
+    Search vocabulary entries by reading (hiragana/katakana).
+
+    Args:
+        reading: Reading to search for (in hiragana/katakana)
+        exact_match: If True, find exact matches; if False, find partial matches
+        db_path: Database path (optional)
+
+    Returns:
+        list[dict]: Matching vocabulary entries with all fields
+
+    Example:
+        >>> # Find all words read as "たんご"
+        >>> matches = search_vocabulary_by_reading("たんご")
+        >>> # Find words with reading containing "たん"
+        >>> matches = search_vocabulary_by_reading("たん", exact_match=False)
+    """
+    with get_cursor(db_path) as cursor:
+        if exact_match:
+            query = "SELECT * FROM vocabulary WHERE reading = ? ORDER BY created_at DESC"
+            params = [reading]
+        else:
+            query = "SELECT * FROM vocabulary WHERE reading LIKE ? ORDER BY created_at DESC"
+            params = [f"%{reading}%"]
+
+        cursor.execute(query, params)
+        return [dict(row) for row in cursor.fetchall()]
+
+
 def update_vocabulary(vocab_id: int, **kwargs) -> bool:
     """
     Update a vocabulary entry.
@@ -388,6 +422,49 @@ def search_kanji(
             params.append(jlpt_level)
 
         query += " ORDER BY created_at DESC"
+
+        cursor.execute(query, params)
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def search_kanji_by_reading(
+    reading: str,
+    reading_type: str = "both",
+    db_path: Path | None = None
+) -> list[dict[str, Any]]:
+    """
+    Search kanji entries by reading (on-yomi or kun-yomi).
+
+    Args:
+        reading: Reading to search for (in hiragana/katakana)
+        reading_type: Type of reading - 'on', 'kun', or 'both' (default: 'both')
+        db_path: Database path (optional)
+
+    Returns:
+        list[dict]: Matching kanji entries with all fields
+
+    Example:
+        >>> # Find kanji with on-yomi reading "ゴ"
+        >>> matches = search_kanji_by_reading("ゴ", reading_type="on")
+        >>> # Find kanji with kun-yomi reading "かた.る"
+        >>> matches = search_kanji_by_reading("かた.る", reading_type="kun")
+        >>> # Find kanji with either on or kun reading containing "がく"
+        >>> matches = search_kanji_by_reading("がく", reading_type="both")
+    """
+    with get_cursor(db_path) as cursor:
+        if reading_type == "on":
+            query = "SELECT * FROM kanji WHERE on_readings LIKE ? ORDER BY created_at DESC"
+            params = [f"%{reading}%"]
+        elif reading_type == "kun":
+            query = "SELECT * FROM kanji WHERE kun_readings LIKE ? ORDER BY created_at DESC"
+            params = [f"%{reading}%"]
+        else:  # both
+            query = """
+                SELECT * FROM kanji
+                WHERE on_readings LIKE ? OR kun_readings LIKE ?
+                ORDER BY created_at DESC
+            """
+            params = [f"%{reading}%", f"%{reading}%"]
 
         cursor.execute(query, params)
         return [dict(row) for row in cursor.fetchall()]

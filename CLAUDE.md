@@ -700,10 +700,82 @@ n5_vocab_reviews = scheduler.get_review_count(jlpt_level='n5', item_type=ItemTyp
 - Full type hints and documentation
 - Reuses existing database layer (thin wrapper)
 
-**Next Phase**: Phase 5 - Data Import System
-- JMdict XML parser (importers/jmdict.py)
-- KANJIDIC2 XML parser (importers/kanjidic.py)
-- JLPT level mapper (importers/jlpt.py)
-- CLI import commands with progress bars
+**Phase 5: Data Import System** - ✅ COMPLETE (2025-10-26)
+
+### Completed:
+- ✅ JLPTLevelMapper class (importers/jlpt.py) - 174 lines, 98% coverage
+- ✅ JMdictImporter class (importers/jmdict.py) - 299 lines, streaming XML parser
+- ✅ KanjidicImporter class (importers/kanjidic.py) - 293 lines, streaming XML parser
+- ✅ Import utilities (importers/utils.py) - 193 lines, download/decompress/POS mapping
+- ✅ CLI import commands (cli/import_data.py) - 146 lines
+- ✅ JLPT reference files - n5_vocab.csv (81 words), n5_kanji.txt (103 chars)
+- ✅ Sample XML fixtures for testing (JMdict and KANJIDIC2)
+- ✅ 23 comprehensive tests (17 JLPT mapper, 6 integration)
+
+### Import Commands Available:
+```bash
+japanese-cli import n5              # Import both vocab and kanji
+japanese-cli import n5 --vocab      # Import vocabulary only
+japanese-cli import n5 --kanji      # Import kanji only
+japanese-cli import n5 --force      # Force re-download data files
+```
+
+### Key Features:
+- **Streaming XML parsing** with lxml.etree.iterparse() for memory efficiency
+- **Rich progress bars** for download, parsing, and database operations
+- **Duplicate detection** with smart update logic
+- **JLPT N5 filtering** using manual reference lists
+- **Error handling** with retry logic for downloads
+- **Part of speech mapping** from JMdict entities
+
+**Phase 6: Flashcard CLI - Add & List** - ✅ COMPLETE (2025-10-26)
+
+### Completed:
+- ✅ UI utilities - 813 lines total
+  - ui/furigana.py (135 lines) - Furigana rendering with compact/detailed styles
+  - ui/display.py (352 lines) - Rich tables and panels for vocab/kanji
+  - ui/prompts.py (282 lines) - Interactive data collection with validation
+  - ui/__init__.py (44 lines) - Clean exports
+- ✅ Flashcard CLI (cli/flashcard.py) - 453 lines with 4 commands
+- ✅ Manual end-to-end testing with real N5 data (81 vocab, 103 kanji)
+- ✅ Comprehensive test suite - 106 tests with 97% coverage on UI modules
+  - test_ui_furigana.py (23 tests) - 100% coverage on furigana.py
+  - test_ui_display.py (29 tests) - 99% coverage on display.py
+  - test_ui_prompts.py (25 tests) - 93% coverage on prompts.py
+  - test_flashcard_cli.py (29 tests) - 79% coverage on flashcard.py
+
+### Flashcard Commands Available:
+```bash
+# List flashcards
+japanese-cli flashcard list --type vocab                 # All vocabulary
+japanese-cli flashcard list --type kanji --level n5      # N5 kanji only
+japanese-cli flashcard list --type vocab --limit 20      # Show 20 items
+
+# Show detailed view
+japanese-cli flashcard show 75 --type vocab              # Detailed vocab view
+japanese-cli flashcard show 1 --type kanji               # Detailed kanji view
+
+# Add new flashcards (interactive)
+japanese-cli flashcard add --type vocab                  # Add vocabulary
+japanese-cli flashcard add --type kanji                  # Add kanji
+
+# Edit existing flashcards (interactive)
+japanese-cli flashcard edit 75 --type vocab              # Edit vocab
+japanese-cli flashcard edit 1 --type kanji               # Edit kanji
+```
+
+### Key Features:
+- **Rich UI components** - Beautiful tables with furigana: 単語[たんご]
+- **JLPT color coding** - n5=green, n4=cyan, n3=yellow, n2=magenta, n1=red
+- **Interactive prompts** - Pydantic validation at input time
+- **Review integration** - Display due dates, auto-add to review queue
+- **Vietnamese support** - UTF-8 encoding, Vietnamese priority in displays
+- **Flexible filtering** - By JLPT level, item type, pagination (limit/offset)
+
+**Next Phase**: Phase 7 - Review Session
+- Review session command with FSRS scheduling
+- Card question/answer display
+- Rating prompts (1-Again, 2-Hard, 3-Good, 4-Easy)
+- Session summary with statistics
 
 **Last Updated**: 2025-10-26

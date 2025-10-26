@@ -58,6 +58,34 @@ class Vocabulary(BaseModel):
 
         return v
 
+    @field_validator('word', 'reading')
+    @classmethod
+    def validate_japanese_characters(cls, v: str, info) -> str:
+        """Ensure word and reading contain Japanese characters, not romaji."""
+        # Import here to avoid circular imports
+        import sys
+        if 'japanese_cli.ui.japanese_utils' in sys.modules:
+            from japanese_cli.ui.japanese_utils import contains_japanese, is_romaji
+        else:
+            # If utils not loaded yet, skip validation (during import time)
+            return v
+
+        field_name = info.field_name.capitalize()
+
+        if is_romaji(v):
+            raise ValueError(
+                f'{field_name} must be in Japanese characters (hiragana, katakana, or kanji), not romaji. '
+                f'Received: "{v}"'
+            )
+
+        if not contains_japanese(v):
+            raise ValueError(
+                f'{field_name} must contain Japanese characters. '
+                f'Received: "{v}"'
+            )
+
+        return v
+
     @model_validator(mode='after')
     def validate_meanings_not_empty(self) -> Self:
         """Ensure at least one language has at least one meaning."""

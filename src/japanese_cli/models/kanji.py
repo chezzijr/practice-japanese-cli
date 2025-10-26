@@ -60,6 +60,50 @@ class Kanji(BaseModel):
 
         return v
 
+    @field_validator('character')
+    @classmethod
+    def validate_kanji_character(cls, v: str) -> str:
+        """Ensure character is a single valid kanji."""
+        # Import here to avoid circular imports
+        import sys
+        if 'japanese_cli.ui.japanese_utils' in sys.modules:
+            from japanese_cli.ui.japanese_utils import is_kanji, is_hiragana, is_katakana, is_romaji
+        else:
+            # If utils not loaded yet, just check length (during import time)
+            if len(v) != 1:
+                raise ValueError('Character must be exactly one character')
+            return v
+
+        # Already validated by Field(..., min_length=1, max_length=1) but double-check
+        if len(v) != 1:
+            raise ValueError('Character must be exactly one character')
+
+        if is_romaji(v):
+            raise ValueError(
+                f'Character must be a kanji character, not romaji. '
+                f'Received: "{v}"'
+            )
+
+        if is_hiragana(v):
+            raise ValueError(
+                f'Character must be a kanji character, not hiragana. '
+                f'Received: "{v}"'
+            )
+
+        if is_katakana(v):
+            raise ValueError(
+                f'Character must be a kanji character, not katakana. '
+                f'Received: "{v}"'
+            )
+
+        if not is_kanji(v):
+            raise ValueError(
+                f'Character must be a valid kanji character. '
+                f'Received: "{v}"'
+            )
+
+        return v
+
     @model_validator(mode='after')
     def validate_readings_or_meanings(self) -> Self:
         """Ensure kanji has at least one reading or meaning."""

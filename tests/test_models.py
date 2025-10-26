@@ -11,6 +11,9 @@ import pytest
 from fsrs import Card, Rating
 from pydantic import ValidationError
 
+# Import japanese_utils to ensure it's loaded for model validators
+from japanese_cli.ui import japanese_utils  # noqa: F401
+
 from japanese_cli.models import (
     Example,
     GrammarPoint,
@@ -143,6 +146,63 @@ class TestVocabulary:
         tags = json.loads(db_dict["tags"])
         assert tags == ["common"]
 
+    def test_vocabulary_word_rejects_romaji(self):
+        """Test that word field rejects romaji input."""
+        with pytest.raises(ValidationError) as exc_info:
+            Vocabulary(
+                word="tanago",  # Romaji
+                reading="たんご",
+                meanings={"vi": ["từ vựng"]}
+            )
+
+        assert "must be in Japanese characters" in str(exc_info.value)
+        assert "not romaji" in str(exc_info.value)
+
+    def test_vocabulary_reading_rejects_romaji(self):
+        """Test that reading field rejects romaji input."""
+        with pytest.raises(ValidationError) as exc_info:
+            Vocabulary(
+                word="単語",
+                reading="tanago",  # Romaji
+                meanings={"vi": ["từ vựng"]}
+            )
+
+        assert "must be in Japanese characters" in str(exc_info.value)
+        assert "not romaji" in str(exc_info.value)
+
+    def test_vocabulary_accepts_hiragana(self):
+        """Test that hiragana is accepted in word and reading."""
+        vocab = Vocabulary(
+            word="ひらがな",
+            reading="ひらがな",
+            meanings={"vi": ["chữ hiragana"]}
+        )
+
+        assert vocab.word == "ひらがな"
+        assert vocab.reading == "ひらがな"
+
+    def test_vocabulary_accepts_katakana(self):
+        """Test that katakana is accepted in word and reading."""
+        vocab = Vocabulary(
+            word="カタカナ",
+            reading="カタカナ",
+            meanings={"vi": ["chữ katakana"]}
+        )
+
+        assert vocab.word == "カタカナ"
+        assert vocab.reading == "カタカナ"
+
+    def test_vocabulary_accepts_mixed_japanese(self):
+        """Test that mixed Japanese (kanji + kana) is accepted."""
+        vocab = Vocabulary(
+            word="日本語",
+            reading="にほんご",
+            meanings={"vi": ["tiếng Nhật"]}
+        )
+
+        assert vocab.word == "日本語"
+        assert vocab.reading == "にほんご"
+
 
 # ============================================================================
 # Kanji Model Tests
@@ -242,6 +302,67 @@ class TestKanji:
         assert json.loads(db_dict["on_readings"]) == ["ゴ"]
         assert isinstance(db_dict["kun_readings"], str)
         assert json.loads(db_dict["kun_readings"]) == ["かた.る"]
+
+    def test_kanji_character_rejects_romaji(self):
+        """Test that character field rejects romaji input."""
+        with pytest.raises(ValidationError) as exc_info:
+            Kanji(
+                character="g",  # Romaji
+                meanings={"vi": ["test"]}
+            )
+
+        assert "must be a kanji character, not romaji" in str(exc_info.value)
+
+    def test_kanji_character_rejects_hiragana(self):
+        """Test that character field rejects hiragana input."""
+        with pytest.raises(ValidationError) as exc_info:
+            Kanji(
+                character="あ",  # Hiragana
+                meanings={"vi": ["a"]}
+            )
+
+        assert "must be a kanji character, not hiragana" in str(exc_info.value)
+
+    def test_kanji_character_rejects_katakana(self):
+        """Test that character field rejects katakana input."""
+        with pytest.raises(ValidationError) as exc_info:
+            Kanji(
+                character="ア",  # Katakana
+                meanings={"vi": ["a"]}
+            )
+
+        assert "must be a kanji character, not katakana" in str(exc_info.value)
+
+    def test_kanji_character_accepts_valid_kanji(self):
+        """Test that valid kanji characters are accepted."""
+        kanji = Kanji(
+            character="語",
+            meanings={"vi": ["ngữ"]}
+        )
+
+        assert kanji.character == "語"
+
+    def test_kanji_character_must_be_single(self):
+        """Test that character must be exactly one character."""
+        with pytest.raises(ValidationError) as exc_info:
+            Kanji(
+                character="語言",  # Two characters
+                meanings={"vi": ["ngữ ngôn"]}
+            )
+
+        # Pydantic's built-in max_length validation triggers first
+        assert "at most 1 character" in str(exc_info.value)
+
+    def test_kanji_character_rejects_numbers(self):
+        """Test that numbers are rejected."""
+        with pytest.raises(ValidationError) as exc_info:
+            Kanji(
+                character="1",
+                meanings={"vi": ["một"]}
+            )
+
+        # Numbers are detected as romaji
+        assert "not romaji" in str(exc_info.value)
 
 
 # ============================================================================

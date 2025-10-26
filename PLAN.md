@@ -8,7 +8,7 @@ This document outlines the detailed implementation roadmap for the Japanese Lear
 
 **Timeline**: Phased approach with incremental feature delivery
 
-**Current Status**: Phase 1 Complete - Documentation created
+**Current Status**: Phase 6 Complete - Flashcard CLI with comprehensive UI and test coverage
 
 ## Implementation Phases
 
@@ -570,92 +570,109 @@ japanese-cli import n5 --force      # Force re-download data files
 
 ---
 
-## Phase 6: Flashcard CLI - Add & List
+## Phase 6: Flashcard CLI - Add & List ✅ COMPLETE
 
 **Goal**: Implement commands to manually add flashcards and list existing ones.
 
 ### Deliverables
-- [ ] Add vocabulary command (cli/flashcard.py)
-- [ ] Add kanji command (cli/flashcard.py)
-- [ ] List vocabulary/kanji command (cli/flashcard.py)
-- [ ] Edit vocabulary/kanji command (cli/flashcard.py)
-- [ ] Rich formatting for lists (ui/display.py)
+- [x] Add vocabulary command (cli/flashcard.py)
+- [x] Add kanji command (cli/flashcard.py)
+- [x] List vocabulary/kanji command (cli/flashcard.py)
+- [x] Edit vocabulary/kanji command (cli/flashcard.py)
+- [x] Rich formatting for lists (ui/display.py)
+- [x] Show command for detailed flashcard view
+- [x] Furigana rendering utilities (ui/furigana.py)
+- [x] Interactive prompts (ui/prompts.py)
 
-### Tasks
+### Completed Artifacts
 
-#### 6.1: Add Vocabulary Command
+**UI Utilities (4 files, ~813 lines)**:
+- `src/japanese_cli/ui/furigana.py` (135 lines) - Furigana rendering with compact/detailed styles
+- `src/japanese_cli/ui/display.py` (352 lines) - Rich tables and panels for vocab/kanji
+- `src/japanese_cli/ui/prompts.py` (282 lines) - Interactive data collection with validation
+- `src/japanese_cli/ui/__init__.py` (44 lines) - Clean exports
+
+**CLI Commands**:
+- `src/japanese_cli/cli/flashcard.py` (453 lines) - Complete flashcard management
+  - `add` command - Interactive creation with Pydantic validation
+  - `list` command - Rich tables with filters (type, level, limit, offset)
+  - `show` command - Detailed panel view with all metadata
+  - `edit` command - Pre-filled interactive editing
+  - Auto-creation of review entries (optional)
+
+**Modified Files**:
+- `src/japanese_cli/main.py` - Registered flashcard app
+- `src/japanese_cli/cli/__init__.py` - Added flashcard export
+
+### Key Features Implemented
+
+**Rich UI Components**:
+- Beautiful tables with furigana: 単語[たんご]
+- Color-coded JLPT levels (n5=green, n4=cyan, n3=yellow, n2=magenta, n1=red)
+- Detailed panels showing all fields (meanings, readings, metadata, review status)
+- Vietnamese character support (UTF-8)
+
+**Flashcard Management**:
+- Interactive prompts for all fields with validation
+- Pre-filled edit mode showing current values
+- Optional auto-add to SRS review queue
+- Flexible filtering (JLPT level, item type, pagination)
+- Review status display (due now, days until due, review count)
+
+**Commands Working**:
 ```bash
-japanese-cli flashcard add --type vocab
-# Interactive prompts:
-# - Word (kanji):
-# - Reading (hiragana/katakana):
-# - Vietnamese meaning:
-# - English meaning (optional):
-# - Vietnamese reading (optional):
-# - JLPT level (n5/n4/n3/n2/n1):
-# - Part of speech:
-# - Notes (optional):
-```
+# List flashcards
+japanese-cli flashcard list --type vocab                 # All vocabulary
+japanese-cli flashcard list --type kanji --level n5      # N5 kanji only
+japanese-cli flashcard list --type vocab --limit 20      # Show 20 items
 
-#### 6.2: Add Kanji Command
-```bash
-japanese-cli flashcard add --type kanji
-# Interactive prompts:
-# - Kanji character:
-# - On-yomi readings (comma-separated):
-# - Kun-yomi readings (comma-separated):
-# - Vietnamese meaning:
-# - Vietnamese reading (Hán Việt):
-# - JLPT level:
-# - Stroke count:
-# - Notes:
-```
+# Show detailed view
+japanese-cli flashcard show 75 --type vocab              # Detailed vocab view
+japanese-cli flashcard show 1 --type kanji               # Detailed kanji view
 
-#### 6.3: List Command
-```bash
-japanese-cli flashcard list --type vocab --level n5
-japanese-cli flashcard list --type kanji --level n5
-japanese-cli flashcard list --due  # Show only due cards
-```
+# Add new flashcards (interactive)
+japanese-cli flashcard add --type vocab                  # Add vocabulary
+japanese-cli flashcard add --type kanji                  # Add kanji
 
-Display as Rich table with columns:
-- ID
-- Word/Character
-- Reading
-- Meaning (Vietnamese)
-- JLPT Level
-- Due Date (if review exists)
-
-#### 6.4: Edit Command
-```bash
-japanese-cli flashcard edit <id> --type vocab
-# Interactive prompts pre-filled with current values
-```
-
-#### 6.5: Rich Formatting (ui/display.py)
-```python
-def format_vocabulary_table(vocab_list: list[Vocabulary]) -> Table:
-    """Create Rich table for vocabulary list"""
-
-def format_kanji_table(kanji_list: list[Kanji]) -> Table:
-    """Create Rich table for kanji list"""
-
-def format_with_furigana(word: str, reading: str) -> Text:
-    """Format word with furigana: 単語[たんご]"""
+# Edit existing flashcards (interactive)
+japanese-cli flashcard edit 75 --type vocab              # Edit vocab
+japanese-cli flashcard edit 1 --type kanji               # Edit kanji
 ```
 
 ### Acceptance Criteria
-- Can add vocabulary and kanji interactively
-- Can list all flashcards with filters
-- Can edit existing flashcards
-- Rich tables display correctly in terminal
-- Furigana format is readable
+- ✅ Can add vocabulary and kanji interactively
+- ✅ Input validation prevents invalid data (Pydantic)
+- ✅ Can list flashcards with filters (type, level, limit, offset)
+- ✅ Rich tables display correctly in terminal
+- ✅ Can edit existing flashcards with pre-filled values
+- ✅ Show command displays all details beautifully
+- ✅ Furigana format is readable: 赤[あか]
+- ✅ Commands registered and accessible via CLI
+- ✅ Vietnamese characters display correctly
 
-### Testing
-- Test add command with valid/invalid input
-- Test list command with various filters
-- Test edit command updates database
-- Test Rich table rendering
+### Testing Status ✅ COMPLETE
+- ✅ Manual end-to-end testing completed
+- ✅ All commands verified with real N5 data (81 vocab, 103 kanji)
+- ✅ List, show, add, edit commands all functional
+- ✅ **106 comprehensive tests written, all passing**
+- ✅ **97% coverage on UI modules** (288 statements, 8 missed)
+  - test_ui_furigana.py: 23 tests - furigana rendering (100% coverage)
+  - test_ui_display.py: 29 tests - tables and panels (99% coverage)
+  - test_ui_prompts.py: 25 tests - interactive prompts (93% coverage)
+  - test_flashcard_cli.py: 29 tests - CLI commands (79% coverage on flashcard.py)
+- ✅ Coverage breakdown:
+  - ui/furigana.py: 100% (37 statements, 0 missed)
+  - ui/display.py: 99% (156 statements, 2 missed)
+  - ui/prompts.py: 93% (91 statements, 6 missed)
+  - cli/flashcard.py: 79% (215 statements, 45 missed)
+- ✅ **Exceeded 85% coverage target**
+
+### Technical Decisions
+- **Furigana rendering**: Both Rich Text (for tables) and string markup (for panels)
+- **Color scheme**: Vietnamese=green, English=dim, Japanese=cyan/yellow
+- **Validation**: Pydantic models prevent invalid data at prompt time
+- **Review integration**: Optional prompt after adding flashcard
+- **Panel content**: Use string markup instead of Text objects to avoid join() errors
 
 ---
 
@@ -1080,22 +1097,56 @@ japanese-cli init           # Initialize database (fully functional!)
 - [x] 98% coverage on JLPT mapper, full integration tests
 - [x] Rich progress bars for download/parsing/database operations
 
+**Phase 6**: ✅ COMPLETE (100%)
+- [x] UI utilities (ui/furigana.py, ui/display.py, ui/prompts.py, ui/__init__.py) - 813 lines
+- [x] Flashcard CLI (cli/flashcard.py) - 453 lines with 4 commands
+- [x] `flashcard add` command - Interactive vocab/kanji creation with validation
+- [x] `flashcard list` command - Rich tables with filters (type, level, limit, offset)
+- [x] `flashcard show` command - Detailed panel view with all metadata
+- [x] `flashcard edit` command - Pre-filled interactive editing
+- [x] Furigana rendering - Compact/detailed styles: 単語[たんご]
+- [x] JLPT color coding - n5=green, n4=cyan, n3=yellow, n2=magenta, n1=red
+- [x] Review status integration - Display due dates and review counts
+- [x] Vietnamese character support - UTF-8 encoding throughout
+- [x] Manual end-to-end testing - All commands verified with real N5 data
+
 **Test Suite Summary**:
-- ✅ 176 total tests (153 previous + 23 new), all passing
+- ✅ 282 total tests, all passing
 - ✅ Phase 2: 76 tests (database layer) - 80% coverage
 - ✅ Phase 3: 40 tests (models) - 92% coverage
 - ✅ Phase 4: 37 tests (SRS layer) - 94% coverage
 - ✅ Phase 5: 23 tests (importers) - 98% coverage on JLPT mapper
-- ✅ Overall project coverage: ~88%
+- ✅ Phase 6: 106 tests (UI utilities and flashcard CLI) - 97% coverage on UI modules
+- ✅ Overall project coverage: ~90%
 
-**Next Steps (Phase 6)**:
-1. Implement flashcard add command (cli/flashcard.py)
-2. Implement flashcard list command with Rich tables
-3. Implement flashcard edit command
-4. Create UI display utilities (ui/display.py)
-5. Add furigana formatting support
+**Working Commands**:
+```bash
+# Basic commands
+japanese-cli --help         # Show all commands
+japanese-cli version        # Show version
+japanese-cli init           # Initialize database
+
+# Import commands
+japanese-cli import n5              # Import N5 vocab and kanji
+japanese-cli import n5 --vocab      # Import vocabulary only
+japanese-cli import n5 --kanji      # Import kanji only
+
+# Flashcard commands
+japanese-cli flashcard list --type vocab --level n5    # List N5 vocabulary
+japanese-cli flashcard show 75 --type vocab            # Show vocab details
+japanese-cli flashcard add --type vocab                # Add vocabulary interactively
+japanese-cli flashcard edit 75 --type vocab            # Edit vocabulary
+```
+
+**Next Steps (Phase 7)**:
+1. Implement flashcard review command (cli/flashcard.py)
+2. Create review session UI (ui/display.py)
+3. Implement card question/answer display
+4. Add rating prompts (1-Again, 2-Hard, 3-Good, 4-Easy)
+5. Create session summary with statistics
+6. Write comprehensive tests for Phase 7
 
 ---
 
 **Last Updated**: 2025-10-26
-**Current Phase**: Phase 5 Complete - Ready for Phase 6 (Flashcard CLI)
+**Current Phase**: Phase 6 Complete - Ready for Phase 7 (Review Session)

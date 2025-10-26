@@ -144,33 +144,37 @@ class JMdictImporter:
                     if not word:
                         word = reading
 
-                    # Extract meanings and part of speech from first sense
-                    sense = entry_elem.find('sense')
-                    if sense is None:
+                    # Extract meanings and part of speech from ALL senses
+                    sense_elements = entry_elem.findall('sense')
+                    if not sense_elements:
                         continue  # Skip if no sense
 
-                    # Get glosses (English meanings)
-                    glosses = sense.findall('gloss')
+                    # Collect all glosses from all senses
                     meanings = []
-                    for gloss in glosses:
-                        # Only get English glosses (no lang attribute or lang="eng")
-                        lang = gloss.get('{http://www.w3.org/XML/1998/namespace}lang')
-                        if lang is None or lang == 'eng':
-                            if gloss.text:
-                                meanings.append(gloss.text)
+                    part_of_speech = None
+
+                    for sense in sense_elements:
+                        # Get glosses (English meanings)
+                        glosses = sense.findall('gloss')
+                        for gloss in glosses:
+                            # Only get English glosses (no lang attribute or lang="eng")
+                            lang = gloss.get('{http://www.w3.org/XML/1998/namespace}lang')
+                            if lang is None or lang == 'eng':
+                                if gloss.text:
+                                    meanings.append(gloss.text)
+
+                        # Get part of speech from first sense if not already set
+                        if part_of_speech is None:
+                            pos_elem = sense.find('pos')
+                            if pos_elem is not None and pos_elem.text:
+                                # Extract entity reference (between & and ;)
+                                pos_text = pos_elem.text
+                                if '&' in pos_text and ';' in pos_text:
+                                    entity = pos_text.split('&')[1].split(';')[0]
+                                    part_of_speech = map_pos(entity)
 
                     if not meanings:
                         continue  # Skip if no meanings
-
-                    # Get part of speech
-                    pos_elem = sense.find('pos')
-                    part_of_speech = None
-                    if pos_elem is not None and pos_elem.text:
-                        # Extract entity reference (between & and ;)
-                        pos_text = pos_elem.text
-                        if '&' in pos_text and ';' in pos_text:
-                            entity = pos_text.split('&')[1].split(';')[0]
-                            part_of_speech = map_pos(entity)
 
                     yield {
                         'word': word,
