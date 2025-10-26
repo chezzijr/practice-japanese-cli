@@ -510,11 +510,55 @@ def display_card_answer(
     return panel
 
 
+def get_single_keypress() -> str:
+    """
+    Get a single keypress from the user without requiring Enter.
+
+    Uses terminal raw mode on Unix systems to capture immediate input.
+    Falls back to regular input if raw mode is not available.
+
+    Returns:
+        str: Single character pressed by user
+
+    Example:
+        >>> key = get_single_keypress()
+        >>> # User presses '3'
+        >>> print(key)  # '3'
+    """
+    import sys
+
+    try:
+        # Unix/Linux/Mac systems
+        import termios
+        import tty
+
+        # Get current terminal settings
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
+
+        try:
+            # Set terminal to raw mode (no buffering, no echo)
+            tty.setraw(fd)
+
+            # Read single character
+            char = sys.stdin.read(1)
+
+            return char
+        finally:
+            # Restore terminal settings
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+
+    except (ImportError, AttributeError):
+        # Windows or terminal doesn't support raw mode
+        # Fall back to regular input
+        return input()
+
+
 def prompt_rating() -> int:
     """
     Prompt user to rate how well they recalled the flashcard.
 
-    Displays rating guide and validates input (1-4 only).
+    Displays rating guide and captures input with single keypress (no Enter needed).
 
     Returns:
         int: Rating from 1-4
@@ -525,11 +569,9 @@ def prompt_rating() -> int:
 
     Example:
         >>> rating = prompt_rating()
-        >>> # User enters 3
+        >>> # User presses '3' (no Enter needed)
         >>> print(rating)  # 3
     """
-    from rich.prompt import IntPrompt
-
     # Display rating guide
     guide = Table.grid(padding=(0, 2))
     guide.add_column(style="bold", justify="right")
@@ -544,23 +586,45 @@ def prompt_rating() -> int:
     console.print("")
     console.print(guide)
     console.print("")
+    console.print("[bold]Rate your recall[/bold] [dim](press 1-4):[/dim] ", end="")
 
-    # Prompt for rating with validation
+    # Flush output to ensure prompt is displayed
+    import sys
+    sys.stdout.flush()
+
+    # Capture single keypress
     while True:
         try:
-            rating = IntPrompt.ask(
-                "[bold]Rate your recall[/bold]",
-                default=3
-            )
-            if rating in [1, 2, 3, 4]:
+            key = get_single_keypress()
+
+            # Handle Ctrl+C (ASCII code 3)
+            if ord(key) == 3:
+                console.print("\n\n[yellow]Session cancelled[/yellow]")
+                raise KeyboardInterrupt()
+
+            # Validate input
+            if key in ['1', '2', '3', '4']:
+                rating = int(key)
+                console.print(f"{rating}")  # Echo the rating
                 return rating
             else:
-                console.print("[red]Please enter a number between 1 and 4[/red]")
+                console.print(f"\n[red]Invalid input '{key}'. Please press 1, 2, 3, or 4[/red]")
+                console.print("[bold]Rate your recall[/bold] [dim](press 1-4):[/dim] ", end="")
+                sys.stdout.flush()
+
         except KeyboardInterrupt:
-            console.print("\n[yellow]Session cancelled[/yellow]")
             raise
-        except Exception:
-            console.print("[red]Please enter a valid number (1-4)[/red]")
+        except Exception as e:
+            console.print(f"\n[red]Error reading input: {e}[/red]")
+            console.print("[yellow]Falling back to standard input...[/yellow]")
+            # Fallback to standard input
+            from rich.prompt import IntPrompt
+            rating = IntPrompt.ask(
+                "[bold]Rate your recall[/bold]",
+                default=3,
+                choices=["1", "2", "3", "4"]
+            )
+            return rating
 
 
 def display_session_summary(

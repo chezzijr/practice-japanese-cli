@@ -6,6 +6,7 @@ import sqlite3
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -53,6 +54,36 @@ def clean_db(temp_db_path):
     # Initialize progress for default user
     init_progress(db_path=temp_db_path)
     return temp_db_path
+
+
+@pytest.fixture
+def mock_db_path(clean_db, monkeypatch):
+    """
+    Monkeypatch get_db_path() to return the temp database for CLI tests.
+
+    This ensures CLI commands never touch the production database during tests.
+
+    Args:
+        clean_db: Clean database fixture (temp database path)
+        monkeypatch: Pytest monkeypatch fixture
+
+    Returns:
+        Path: Temporary database path (same as clean_db)
+
+    Usage:
+        def test_cli_command(mock_db_path):
+            # CLI commands will now use the temp database
+            result = runner.invoke(app, ["some-command"])
+    """
+    import japanese_cli.database.connection as conn_module
+
+    # Patch get_db_path at the module level where it's actually called
+    monkeypatch.setattr(conn_module, 'get_db_path', lambda: clean_db)
+
+    # Also patch PROJECT_DB_PATH to point to temp database
+    monkeypatch.setattr(conn_module, 'PROJECT_DB_PATH', clean_db)
+
+    return clean_db
 
 
 @pytest.fixture
@@ -202,3 +233,69 @@ def db_with_review(db_with_vocabulary):
     )
 
     return db_path, vocab_id, review_id
+
+
+# ============================================================================
+# CLI Test Fixtures with Database Isolation
+# ============================================================================
+
+
+@pytest.fixture
+def cli_clean_db(mock_db_path):
+    """
+    Clean database for CLI tests with automatic path monkeypatching.
+
+    Use this instead of clean_db for CLI command tests to ensure isolation.
+
+    Returns:
+        Path: Temporary database path
+    """
+    return mock_db_path
+
+
+@pytest.fixture
+def cli_db_with_vocabulary(mock_db_path, sample_vocabulary):
+    """
+    Database with vocabulary for CLI tests with automatic path monkeypatching.
+
+    Args:
+        mock_db_path: Monkeypatched database path
+        sample_vocabulary: Sample vocabulary data
+
+    Returns:
+        tuple: (db_path, vocabulary_id)
+    """
+    vocab_id = add_vocabulary(**sample_vocabulary, db_path=mock_db_path)
+    return mock_db_path, vocab_id
+
+
+@pytest.fixture
+def cli_db_with_kanji(mock_db_path, sample_kanji):
+    """
+    Database with kanji for CLI tests with automatic path monkeypatching.
+
+    Args:
+        mock_db_path: Monkeypatched database path
+        sample_kanji: Sample kanji data
+
+    Returns:
+        tuple: (db_path, kanji_id)
+    """
+    kanji_id = add_kanji(**sample_kanji, db_path=mock_db_path)
+    return mock_db_path, kanji_id
+
+
+@pytest.fixture
+def cli_db_with_grammar(mock_db_path, sample_grammar):
+    """
+    Database with grammar for CLI tests with automatic path monkeypatching.
+
+    Args:
+        mock_db_path: Monkeypatched database path
+        sample_grammar: Sample grammar data
+
+    Returns:
+        tuple: (db_path, grammar_id)
+    """
+    grammar_id = add_grammar(**sample_grammar, db_path=mock_db_path)
+    return mock_db_path, grammar_id

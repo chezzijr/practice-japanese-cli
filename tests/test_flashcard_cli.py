@@ -20,35 +20,35 @@ runner = CliRunner()
 class TestFlashcardListCommand:
     """Tests for flashcard list command."""
 
-    def test_list_vocabulary_basic(self, db_with_vocabulary):
+    def test_list_vocabulary_basic(self, cli_db_with_vocabulary):
         """Test listing vocabulary flashcards."""
         result = runner.invoke(app, ["list", "--type", "vocab", "--limit", "5"])
 
         # Command should complete (may be 0 or 1 depending on database state)
         assert result.exit_code in [0, 1]
 
-    def test_list_kanji_basic(self, db_with_kanji):
+    def test_list_kanji_basic(self, cli_db_with_kanji):
         """Test listing kanji flashcards."""
         result = runner.invoke(app, ["list", "--type", "kanji", "--limit", "5"])
 
         assert result.exit_code == 0
         assert "Kanji" in result.stdout or "㊙️" in result.stdout
 
-    def test_list_with_jlpt_filter(self, db_with_vocabulary):
+    def test_list_with_jlpt_filter(self, cli_db_with_vocabulary):
         """Test listing with JLPT level filter."""
         result = runner.invoke(app, ["list", "--type", "vocab", "--level", "n5"])
 
         # Command should complete (may be 0 or 1 depending on database state)
         assert result.exit_code in [0, 1]
 
-    def test_list_with_limit(self, db_with_vocabulary):
+    def test_list_with_limit(self, cli_db_with_vocabulary):
         """Test listing with custom limit."""
         result = runner.invoke(app, ["list", "--type", "vocab", "--limit", "10"])
 
         # Command should complete
         assert result.exit_code in [0, 1]
 
-    def test_list_with_offset(self, db_with_vocabulary):
+    def test_list_with_offset(self, cli_db_with_vocabulary):
         """Test listing with offset for pagination."""
         result = runner.invoke(app, ["list", "--type", "vocab", "--limit", "5", "--offset", "5"])
 
@@ -62,14 +62,14 @@ class TestFlashcardListCommand:
         assert result.exit_code == 1
         assert "Invalid type" in result.stdout
 
-    def test_list_invalid_jlpt_level(self, db_with_vocabulary):
+    def test_list_invalid_jlpt_level(self, cli_db_with_vocabulary):
         """Test listing with invalid JLPT level."""
         result = runner.invoke(app, ["list", "--type", "vocab", "--level", "n6"])
 
         assert result.exit_code == 1
         assert "Invalid JLPT level" in result.stdout
 
-    def test_list_empty_database(self, clean_db):
+    def test_list_empty_database(self, cli_clean_db):
         """Test listing with empty database."""
         result = runner.invoke(app, ["list", "--type", "vocab"])
 
@@ -81,7 +81,7 @@ class TestFlashcardListCommand:
 class TestFlashcardShowCommand:
     """Tests for flashcard show command."""
 
-    def test_show_vocabulary(self, db_with_vocabulary):
+    def test_show_vocabulary(self, cli_db_with_vocabulary):
         """Test showing vocabulary details."""
         # Get first vocabulary ID from fixture
         result = runner.invoke(app, ["show", "1", "--type", "vocab"])
@@ -89,14 +89,14 @@ class TestFlashcardShowCommand:
         # May or may not exist depending on fixture, but should not crash
         assert result.exit_code in [0, 1]
 
-    def test_show_kanji(self, db_with_kanji):
+    def test_show_kanji(self, cli_db_with_kanji):
         """Test showing kanji details."""
         result = runner.invoke(app, ["show", "1", "--type", "kanji"])
 
         # May or may not exist depending on fixture
         assert result.exit_code in [0, 1]
 
-    def test_show_nonexistent_vocabulary(self, clean_db):
+    def test_show_nonexistent_vocabulary(self, cli_clean_db):
         """Test showing non-existent vocabulary."""
         result = runner.invoke(app, ["show", "99999", "--type", "vocab"])
 
@@ -116,7 +116,7 @@ class TestFlashcardAddCommand:
 
     @patch('japanese_cli.cli.flashcard.prompt_vocabulary_data')
     @patch('japanese_cli.cli.flashcard.confirm_action')
-    def test_add_vocabulary_success(self, mock_confirm, mock_prompt, clean_db):
+    def test_add_vocabulary_success(self, mock_confirm, mock_prompt, cli_clean_db):
         """Test successfully adding vocabulary."""
         # Mock prompt to return vocabulary data
         mock_prompt.return_value = {
@@ -139,7 +139,7 @@ class TestFlashcardAddCommand:
 
     @patch('japanese_cli.cli.flashcard.prompt_kanji_data')
     @patch('japanese_cli.cli.flashcard.confirm_action')
-    def test_add_kanji_success(self, mock_confirm, mock_prompt, clean_db):
+    def test_add_kanji_success(self, mock_confirm, mock_prompt, cli_clean_db):
         """Test successfully adding kanji."""
         mock_prompt.return_value = {
             "character": "日",
@@ -160,7 +160,7 @@ class TestFlashcardAddCommand:
         assert result.exit_code in [0, 1]
 
     @patch('japanese_cli.cli.flashcard.prompt_vocabulary_data')
-    def test_add_vocabulary_cancelled(self, mock_prompt, clean_db):
+    def test_add_vocabulary_cancelled(self, mock_prompt, cli_clean_db):
         """Test cancelling vocabulary addition."""
         # Mock prompt returning None (cancelled)
         mock_prompt.return_value = None
@@ -172,7 +172,7 @@ class TestFlashcardAddCommand:
 
     @patch('japanese_cli.cli.flashcard.prompt_vocabulary_data')
     @patch('japanese_cli.cli.flashcard.confirm_action')
-    def test_add_vocabulary_with_review(self, mock_confirm, mock_prompt, clean_db):
+    def test_add_vocabulary_with_review(self, mock_confirm, mock_prompt, cli_clean_db):
         """Test adding vocabulary with review queue."""
         mock_prompt.return_value = {
             "word": "勉強",
@@ -205,7 +205,7 @@ class TestFlashcardEditCommand:
 
     @patch('japanese_cli.cli.flashcard.prompt_vocabulary_data')
     @patch('japanese_cli.cli.flashcard.confirm_action')
-    def test_edit_vocabulary_success(self, mock_confirm, mock_prompt, db_with_vocabulary):
+    def test_edit_vocabulary_success(self, mock_confirm, mock_prompt, cli_db_with_vocabulary):
         """Test successfully editing vocabulary."""
         # Mock prompts
         mock_prompt.return_value = {
@@ -228,7 +228,7 @@ class TestFlashcardEditCommand:
 
     @patch('japanese_cli.cli.flashcard.prompt_kanji_data')
     @patch('japanese_cli.cli.flashcard.confirm_action')
-    def test_edit_kanji_success(self, mock_confirm, mock_prompt, db_with_kanji):
+    def test_edit_kanji_success(self, mock_confirm, mock_prompt, cli_db_with_kanji):
         """Test successfully editing kanji."""
         mock_prompt.return_value = {
             "character": "日",
@@ -249,7 +249,7 @@ class TestFlashcardEditCommand:
 
     @patch('japanese_cli.cli.flashcard.prompt_vocabulary_data')
     @patch('japanese_cli.cli.flashcard.confirm_action')
-    def test_edit_vocabulary_cancelled(self, mock_confirm, mock_prompt, db_with_vocabulary):
+    def test_edit_vocabulary_cancelled(self, mock_confirm, mock_prompt, cli_db_with_vocabulary):
         """Test cancelling vocabulary edit."""
         mock_prompt.return_value = {
             "word": "単語",
@@ -269,7 +269,7 @@ class TestFlashcardEditCommand:
         # May show cancel message
         assert result.exit_code in [0, 1]
 
-    def test_edit_nonexistent_vocabulary(self, clean_db):
+    def test_edit_nonexistent_vocabulary(self, cli_clean_db):
         """Test editing non-existent vocabulary."""
         result = runner.invoke(app, ["edit", "99999", "--type", "vocab"])
 
@@ -289,7 +289,7 @@ class TestFlashcardCLIIntegration:
 
     @patch('japanese_cli.cli.flashcard.prompt_vocabulary_data')
     @patch('japanese_cli.cli.flashcard.confirm_action')
-    def test_add_then_list_vocabulary(self, mock_confirm, mock_prompt, clean_db):
+    def test_add_then_list_vocabulary(self, mock_confirm, mock_prompt, cli_clean_db):
         """Test adding vocabulary and then listing it."""
         # Add vocabulary
         mock_prompt.return_value = {
@@ -313,7 +313,7 @@ class TestFlashcardCLIIntegration:
 
     @patch('japanese_cli.cli.flashcard.prompt_kanji_data')
     @patch('japanese_cli.cli.flashcard.confirm_action')
-    def test_add_then_show_kanji(self, mock_confirm, mock_prompt, clean_db):
+    def test_add_then_show_kanji(self, mock_confirm, mock_prompt, cli_clean_db):
         """Test adding kanji and then showing it."""
         # Add kanji
         mock_prompt.return_value = {
@@ -342,14 +342,14 @@ class TestFlashcardCLIIntegration:
 class TestFlashcardCLIEdgeCases:
     """Tests for edge cases in flashcard CLI."""
 
-    def test_list_with_very_large_limit(self, db_with_vocabulary):
+    def test_list_with_very_large_limit(self, cli_db_with_vocabulary):
         """Test listing with very large limit."""
         result = runner.invoke(app, ["list", "--type", "vocab", "--limit", "10000"])
 
         # May succeed or fail depending on database size
         assert result.exit_code in [0, 1]
 
-    def test_list_with_large_offset(self, db_with_vocabulary):
+    def test_list_with_large_offset(self, cli_db_with_vocabulary):
         """Test listing with offset beyond available items."""
         result = runner.invoke(app, ["list", "--type", "vocab", "--offset", "10000"])
 
@@ -371,7 +371,7 @@ class TestFlashcardCLIEdgeCases:
         assert result.exit_code in [0, 1]
 
     @patch('japanese_cli.cli.flashcard.prompt_vocabulary_data')
-    def test_add_vocabulary_with_very_long_data(self, mock_prompt, clean_db):
+    def test_add_vocabulary_with_very_long_data(self, mock_prompt, cli_clean_db):
         """Test adding vocabulary with very long meanings."""
         mock_prompt.return_value = {
             "word": "する",

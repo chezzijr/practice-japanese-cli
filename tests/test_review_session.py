@@ -129,36 +129,37 @@ def test_display_card_answer_kanji(sample_kanji):
     assert "ngữ" in content  # Meaning and Vietnamese reading
 
 
-@patch('rich.prompt.IntPrompt.ask')
-def test_prompt_rating_valid(mock_ask):
+@patch('japanese_cli.ui.display.get_single_keypress')
+def test_prompt_rating_valid(mock_keypress):
     """Test rating prompt with valid input."""
-    mock_ask.return_value = 3
+    mock_keypress.return_value = '3'
 
     rating = prompt_rating()
 
     assert rating == 3
-    mock_ask.assert_called_once()
+    mock_keypress.assert_called_once()
 
 
-@patch('rich.prompt.IntPrompt.ask')
+@patch('japanese_cli.ui.display.get_single_keypress')
 @patch('rich.console.Console.print')
-def test_prompt_rating_invalid_then_valid(mock_print, mock_ask):
+def test_prompt_rating_invalid_then_valid(mock_print, mock_keypress):
     """Test rating prompt with invalid input followed by valid."""
-    # First return invalid (5), then valid (3)
-    mock_ask.side_effect = [5, 3]
+    # First return invalid ('5'), then valid ('3')
+    mock_keypress.side_effect = ['5', '3']
 
     rating = prompt_rating()
 
     assert rating == 3
-    assert mock_ask.call_count == 2
+    assert mock_keypress.call_count == 2
     # Should print error message for invalid input
-    assert any("between 1 and 4" in str(call) for call in mock_print.call_args_list)
+    assert any("Invalid input" in str(call) or "1, 2, 3, or 4" in str(call) for call in mock_print.call_args_list)
 
 
-@patch('rich.prompt.IntPrompt.ask')
-def test_prompt_rating_keyboard_interrupt(mock_ask):
+@patch('japanese_cli.ui.display.get_single_keypress')
+def test_prompt_rating_keyboard_interrupt(mock_keypress):
     """Test rating prompt handles keyboard interrupt."""
-    mock_ask.side_effect = KeyboardInterrupt()
+    # Simulate Ctrl+C (ASCII code 3)
+    mock_keypress.return_value = chr(3)
 
     with pytest.raises(KeyboardInterrupt):
         prompt_rating()
@@ -299,7 +300,7 @@ def test_review_session_with_type_filter(clean_db, sample_vocabulary):
     assert len(kanji_reviews) == 0
 
 
-def test_review_session_early_quit(clean_db, sample_vocabulary):
+def test_review_session_early_quit(cli_clean_db, sample_vocabulary):
     """Test review session with early quit (Ctrl+C)."""
     from japanese_cli.database import add_vocabulary
     from japanese_cli.srs import ReviewScheduler
@@ -308,8 +309,8 @@ def test_review_session_early_quit(clean_db, sample_vocabulary):
     import typer
 
     # Add vocabulary
-    vocab_id = add_vocabulary(**sample_vocabulary)
-    scheduler = ReviewScheduler()
+    vocab_id = add_vocabulary(db_path=cli_clean_db, **sample_vocabulary)
+    scheduler = ReviewScheduler(db_path=cli_clean_db)
     scheduler.create_new_review(vocab_id, ItemType.VOCAB)
 
     # Mock user pressing Ctrl+C after seeing question

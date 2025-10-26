@@ -543,6 +543,8 @@ def _run_review_session(
     item_type: Optional[str]
 ):
     """Run the interactive review session."""
+    import sys
+
     scheduler = ReviewScheduler()
 
     # Convert item_type to ItemType enum if needed
@@ -550,8 +552,10 @@ def _run_review_session(
     if item_type:
         item_type_enum = ItemType.VOCAB if item_type == "vocab" else ItemType.KANJI
 
-    # Get due reviews
+    # Get due reviews - with explicit flushing
     console.print("\n[bold cyan]Loading due cards...[/bold cyan]")
+    sys.stdout.flush()  # Force output to display immediately
+
     due_reviews = scheduler.get_due_reviews(
         limit=limit,
         jlpt_level=jlpt_level,
@@ -562,6 +566,7 @@ def _run_review_session(
     if not due_reviews:
         console.print("\n[green]✓ No cards due for review![/green]")
         console.print("[dim]Great job keeping up with your studies![/dim]")
+        sys.stdout.flush()
         return
 
     # Show session intro
@@ -576,6 +581,7 @@ def _run_review_session(
 
     console.print("\n[dim]Press Ctrl+C at any time to quit (progress will be saved)[/dim]")
     console.print()
+    sys.stdout.flush()  # Ensure all intro text is displayed
 
     # Session statistics
     session_start_time = time.time()
@@ -608,6 +614,7 @@ def _run_review_session(
             # Display question
             question_panel = display_card_question(item, item_type_str, i, total_cards)
             console.print(question_panel)
+            sys.stdout.flush()  # Ensure question is displayed
 
             # Wait for user to press Enter
             input()  # Wait for Enter key
@@ -616,6 +623,7 @@ def _run_review_session(
             # Display answer
             answer_panel = display_card_answer(item, item_type_str)
             console.print(answer_panel)
+            sys.stdout.flush()  # Ensure answer is displayed
 
             # Prompt for rating
             rating = prompt_rating()
@@ -661,5 +669,7 @@ def _run_review_session(
             next_review_dates=next_review_dates
         )
         console.print(summary_panel)
+        sys.stdout.flush()
     else:
         console.print("\n[yellow]No cards were reviewed.[/yellow]")
+        sys.stdout.flush()
