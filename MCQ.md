@@ -143,7 +143,7 @@ MCQ feature for Japanese learning CLI - supports vocabulary and kanji with intel
 **Status**: All 19 unit tests passing ✅
 
 **Completed**:
-- Command: `japanese-cli flashcard mcq` fully implemented
+- Command: `japanese-cli mcq` fully implemented
 - All options working:
   - `--type {vocab,kanji,both}` with random interleaving for "both"
   - `--level {n5,n4,n3,n2,n1}` JLPT filtering
@@ -273,16 +273,16 @@ CREATE TABLE mcq_review_history (
 
 ```bash
 # Review MCQ for all due items
-japanese-cli flashcard mcq
+japanese-cli mcq
 
 # Review only N5 vocabulary
-japanese-cli flashcard mcq --type vocab --level n5 --limit 10
+japanese-cli mcq --type vocab --level n5 --limit 10
 
 # Meaning→Word questions only
-japanese-cli flashcard mcq --question-type meaning-to-word
+japanese-cli mcq --question-type meaning-to-word
 
 # Use English meanings instead of Vietnamese
-japanese-cli flashcard mcq --language en
+japanese-cli mcq --language en
 ```
 
 ---
@@ -305,7 +305,7 @@ japanese-cli flashcard mcq --language en
    - Rationale: MCQ has objective correctness, no subjective "hard/easy"
    - Simpler than 4-option rating for multiple choice
 
-5. **Separate CLI command**: `flashcard mcq` instead of mixed into `flashcard review`
+5. **Separate CLI command**: `mcq` instead of mixed into `flashcard review`
    - Rationale: Clear separation of review modes
    - Easier to configure mode-specific options
 
@@ -317,7 +317,7 @@ japanese-cli flashcard mcq --language en
 2. ✅ **Completed**: MCQ Generator with 4 distractor strategies (Phase 2) - 20 tests, 98% coverage
 3. ✅ **Completed**: MCQReviewScheduler with FSRS integration (Phase 3) - 29 tests, 95% coverage
 4. ✅ **Completed**: UI display functions (Phase 4) - 26 tests, 94% coverage
-5. ✅ **Completed**: CLI command `flashcard mcq` (Phase 5) - 19 unit tests + 6 integration tests, 95%+ coverage
+5. ✅ **Completed**: CLI command `mcq` (Phase 5) - 19 unit tests + 6 integration tests, 95%+ coverage
 6. 🚀 **Next**: Add statistics & polish (Phase 6)
 
 **Progress**: 6/6 phases complete (100%) ✅

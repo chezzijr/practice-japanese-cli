@@ -1,7 +1,7 @@
 """
 Unit tests for MCQ CLI command.
 
-Tests the flashcard mcq command including option validation, auto-create logic,
+Tests the mcq command including option validation, auto-create logic,
 and session flow.
 """
 
@@ -13,7 +13,7 @@ from japanese_cli.main import app
 from japanese_cli.database import add_vocabulary, add_kanji
 from japanese_cli.models import ItemType
 from japanese_cli.srs import MCQReviewScheduler
-from japanese_cli.cli.flashcard import _auto_create_mcq_reviews
+from japanese_cli.cli.mcq import _auto_create_mcq_reviews
 
 
 runner = CliRunner()
@@ -26,7 +26,7 @@ runner = CliRunner()
 
 def test_mcq_command_invalid_type():
     """Test that invalid --type option is rejected."""
-    result = runner.invoke(app, ["flashcard", "mcq", "--type", "invalid"])
+    result = runner.invoke(app, ["mcq", "--type", "invalid"])
 
     assert result.exit_code == 1
     assert "Invalid type 'invalid'" in result.stdout
@@ -34,7 +34,7 @@ def test_mcq_command_invalid_type():
 
 def test_mcq_command_invalid_jlpt_level():
     """Test that invalid --level option is rejected."""
-    result = runner.invoke(app, ["flashcard", "mcq", "--level", "n6"])
+    result = runner.invoke(app, ["mcq", "--level", "n6"])
 
     assert result.exit_code == 1
     assert "Invalid JLPT level 'n6'" in result.stdout
@@ -42,7 +42,7 @@ def test_mcq_command_invalid_jlpt_level():
 
 def test_mcq_command_invalid_question_type():
     """Test that invalid --question-type option is rejected."""
-    result = runner.invoke(app, ["flashcard", "mcq", "--question-type", "invalid"])
+    result = runner.invoke(app, ["mcq", "--question-type", "invalid"])
 
     assert result.exit_code == 1
     assert "Invalid question-type 'invalid'" in result.stdout
@@ -50,7 +50,7 @@ def test_mcq_command_invalid_question_type():
 
 def test_mcq_command_invalid_language():
     """Test that invalid --language option is rejected."""
-    result = runner.invoke(app, ["flashcard", "mcq", "--language", "fr"])
+    result = runner.invoke(app, ["mcq", "--language", "fr"])
 
     assert result.exit_code == 1
     assert "Invalid language 'fr'" in result.stdout
@@ -59,7 +59,7 @@ def test_mcq_command_invalid_language():
 def test_mcq_command_valid_options(mock_db_path):
     """Test that valid options are accepted (even if no cards due)."""
     result = runner.invoke(app, [
-        "flashcard", "mcq",
+        "mcq",
         "--type", "vocab",
         "--level", "n5",
         "--limit", "10",
@@ -231,14 +231,14 @@ def test_auto_create_mcq_reviews_skip_existing(clean_db):
 
 def test_mcq_command_no_cards_due(mock_db_path):
     """Test MCQ command when no cards are due."""
-    result = runner.invoke(app, ["flashcard", "mcq"])
+    result = runner.invoke(app, ["mcq"])
 
     assert result.exit_code == 0
     assert "No MCQ cards due" in result.stdout
 
 
-@patch("japanese_cli.cli.flashcard.prompt_mcq_option")
-@patch("japanese_cli.cli.flashcard.time.sleep")  # Skip the 0.5s pause
+@patch("japanese_cli.cli.mcq.prompt_mcq_option")
+@patch("japanese_cli.cli.mcq.time.sleep")  # Skip the 0.5s pause
 def test_mcq_command_single_question_correct(mock_sleep, mock_prompt, mock_db_path):
     """Test MCQ session with a single question answered correctly."""
     # Add enough vocabulary for distractor generation (need 4+ items)
@@ -267,7 +267,7 @@ def test_mcq_command_single_question_correct(mock_sleep, mock_prompt, mock_db_pa
 
     # Run MCQ command with limit 1
     result = runner.invoke(app, [
-        "flashcard", "mcq",
+        "mcq",
         "--type", "vocab",
         "--limit", "1"
     ])
@@ -278,8 +278,8 @@ def test_mcq_command_single_question_correct(mock_sleep, mock_prompt, mock_db_pa
     assert result.exit_code in [0, 1]
 
 
-@patch("japanese_cli.cli.flashcard.prompt_mcq_option")
-@patch("japanese_cli.cli.flashcard.time.sleep")
+@patch("japanese_cli.cli.mcq.prompt_mcq_option")
+@patch("japanese_cli.cli.mcq.time.sleep")
 def test_mcq_command_multiple_questions(mock_sleep, mock_prompt, mock_db_path):
     """Test MCQ session with multiple questions."""
     # Add 6 vocabulary items
@@ -303,7 +303,7 @@ def test_mcq_command_multiple_questions(mock_sleep, mock_prompt, mock_db_path):
     mock_prompt.side_effect = [0, 1, 0]
 
     result = runner.invoke(app, [
-        "flashcard", "mcq",
+        "mcq",
         "--limit", "3"
     ])
 
@@ -343,7 +343,7 @@ def test_mcq_command_with_type_both(mock_db_path):
 
     # Run with --type both
     result = runner.invoke(app, [
-        "flashcard", "mcq",
+        "mcq",
         "--type", "both",
         "--limit", "10"
     ])
@@ -374,7 +374,7 @@ def test_mcq_command_with_jlpt_filter(mock_db_path):
     )
 
     result = runner.invoke(app, [
-        "flashcard", "mcq",
+        "mcq",
         "--level", "n5",
         "--limit", "10"
     ])
@@ -397,7 +397,7 @@ def test_mcq_command_with_question_type_options(mock_db_path):
 
     # Test word-to-meaning
     result = runner.invoke(app, [
-        "flashcard", "mcq",
+        "mcq",
         "--question-type", "word-to-meaning"
     ])
     assert result.exit_code == 0
@@ -405,7 +405,7 @@ def test_mcq_command_with_question_type_options(mock_db_path):
 
     # Test meaning-to-word
     result = runner.invoke(app, [
-        "flashcard", "mcq",
+        "mcq",
         "--question-type", "meaning-to-word"
     ])
     assert result.exit_code == 0
@@ -413,7 +413,7 @@ def test_mcq_command_with_question_type_options(mock_db_path):
 
     # Test mixed
     result = runner.invoke(app, [
-        "flashcard", "mcq",
+        "mcq",
         "--question-type", "mixed"
     ])
     assert result.exit_code == 0
@@ -434,7 +434,7 @@ def test_mcq_command_with_language_options(mock_db_path):
 
     # Test Vietnamese
     result = runner.invoke(app, [
-        "flashcard", "mcq",
+        "mcq",
         "--language", "vi"
     ])
     assert result.exit_code == 0
@@ -442,7 +442,7 @@ def test_mcq_command_with_language_options(mock_db_path):
 
     # Test English
     result = runner.invoke(app, [
-        "flashcard", "mcq",
+        "mcq",
         "--language", "en"
     ])
     assert result.exit_code == 0
@@ -475,7 +475,7 @@ def test_mcq_command_with_missing_item(mock_db_path):
         cursor.execute("DELETE FROM vocabulary WHERE id = ?", (vocab_id,))
 
     # Run MCQ command
-    result = runner.invoke(app, ["flashcard", "mcq"])
+    result = runner.invoke(app, ["mcq"])
 
     # Should handle gracefully (skip the card)
     assert result.exit_code == 0
@@ -496,7 +496,7 @@ def test_mcq_command_limit_respected(mock_db_path):
 
     # Run with limit 3
     result = runner.invoke(app, [
-        "flashcard", "mcq",
+        "mcq",
         "--limit", "3"
     ])
 

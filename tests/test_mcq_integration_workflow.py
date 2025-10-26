@@ -314,14 +314,14 @@ def test_cli_mcq_full_workflow(mock_db_path):
         vocab_ids.append(vocab_id)
 
     # Step 2: Mock user input to answer correctly (always select option 0)
-    with patch("japanese_cli.cli.flashcard.prompt_mcq_option") as mock_prompt:
-        with patch("japanese_cli.cli.flashcard.time.sleep"):  # Skip pause
+    with patch("japanese_cli.cli.mcq.prompt_mcq_option") as mock_prompt:
+        with patch("japanese_cli.cli.mcq.time.sleep"):  # Skip pause
             # User selects option A (index 0) for all questions
             mock_prompt.return_value = 0
 
             # Step 3: Run MCQ command via CLI
             result = runner.invoke(app, [
-                "flashcard", "mcq",
+                "mcq",
                 "--type", "vocab",
                 "--limit", "2",
                 "--question-type", "word-to-meaning",
@@ -381,13 +381,13 @@ def test_cli_mcq_with_type_both(mock_db_path):
         )
 
     # Mock user input
-    with patch("japanese_cli.cli.flashcard.prompt_mcq_option") as mock_prompt:
-        with patch("japanese_cli.cli.flashcard.time.sleep"):
+    with patch("japanese_cli.cli.mcq.prompt_mcq_option") as mock_prompt:
+        with patch("japanese_cli.cli.mcq.time.sleep"):
             mock_prompt.side_effect = [0, 1, 0, 1]  # Answer 4 questions
 
             # Run with --type both
             result = runner.invoke(app, [
-                "flashcard", "mcq",
+                "mcq",
                 "--type", "both",
                 "--limit", "4"
             ])
@@ -415,10 +415,10 @@ def test_cli_mcq_with_question_type_mixed(mock_db_path):
             db_path=mock_db_path,
         )
 
-    with patch("japanese_cli.cli.flashcard.prompt_mcq_option") as mock_prompt:
-        with patch("japanese_cli.cli.flashcard.time.sleep"):
+    with patch("japanese_cli.cli.mcq.prompt_mcq_option") as mock_prompt:
+        with patch("japanese_cli.cli.mcq.time.sleep"):
             # Patch random.choice to control question mode selection
-            with patch("japanese_cli.cli.flashcard.random.choice") as mock_random:
+            with patch("japanese_cli.cli.mcq.random.choice") as mock_random:
                 # Alternate between word_to_meaning and meaning_to_word
                 mock_random.side_effect = [
                     "word_to_meaning",
@@ -428,7 +428,7 @@ def test_cli_mcq_with_question_type_mixed(mock_db_path):
                 mock_prompt.return_value = 0
 
                 result = runner.invoke(app, [
-                    "flashcard", "mcq",
+                    "mcq",
                     "--question-type", "mixed",
                     "--limit", "3"
                 ])
@@ -462,7 +462,7 @@ def test_cli_mcq_with_jlpt_filter(mock_db_path):
     )
 
     result = runner.invoke(app, [
-        "flashcard", "mcq",
+        "mcq",
         "--level", "n5",
         "--limit", "10"
     ])
@@ -492,12 +492,12 @@ def test_cli_mcq_early_exit(mock_db_path):
         )
 
     # Mock prompt to raise KeyboardInterrupt after first question
-    with patch("japanese_cli.cli.flashcard.prompt_mcq_option") as mock_prompt:
-        with patch("japanese_cli.cli.flashcard.time.sleep"):
+    with patch("japanese_cli.cli.mcq.prompt_mcq_option") as mock_prompt:
+        with patch("japanese_cli.cli.mcq.time.sleep"):
             mock_prompt.side_effect = [0, KeyboardInterrupt()]
 
             result = runner.invoke(app, [
-                "flashcard", "mcq",
+                "mcq",
                 "--limit", "3"
             ])
 
@@ -513,7 +513,7 @@ def test_cli_mcq_no_cards_due(mock_db_path):
     runner = CliRunner()
 
     # Database is empty, no cards to review
-    result = runner.invoke(app, ["flashcard", "mcq"])
+    result = runner.invoke(app, ["mcq"])
 
     assert result.exit_code in [0, 1]  # Accept both success and graceful error
     assert "No MCQ cards due" in result.stdout

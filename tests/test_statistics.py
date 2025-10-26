@@ -324,7 +324,7 @@ class TestCalculateRetentionRate:
         db_path, vocab_ids, kanji_ids, review_ids = db_with_reviews_and_history
 
         # Test with today's date range
-        today = date.today()
+        today = datetime.now(timezone.utc).date()
         rate = calculate_retention_rate(
             start_date=today,
             end_date=today,
@@ -337,7 +337,7 @@ class TestCalculateRetentionRate:
         """Test retention rate with only start date."""
         db_path, vocab_ids, kanji_ids, review_ids = db_with_reviews_and_history
 
-        yesterday = date.today() - timedelta(days=1)
+        yesterday = datetime.now(timezone.utc).date() - timedelta(days=1)
         rate = calculate_retention_rate(start_date=yesterday, db_path=db_path)
 
         assert 0.0 <= rate <= 100.0
@@ -449,7 +449,7 @@ class TestGetReviewsByDateRange:
         """Test filtering by specific date range."""
         db_path, vocab_ids, kanji_ids, review_ids = db_with_reviews_and_history
 
-        today = date.today()
+        today = datetime.now(timezone.utc).date()
         reviews = get_reviews_by_date_range(
             start_date=today,
             end_date=today,
@@ -466,7 +466,7 @@ class TestGetReviewsByDateRange:
         """Test filtering with only start date."""
         db_path, vocab_ids, kanji_ids, review_ids = db_with_reviews_and_history
 
-        yesterday = date.today() - timedelta(days=1)
+        yesterday = datetime.now(timezone.utc).date() - timedelta(days=1)
         reviews = get_reviews_by_date_range(start_date=yesterday, db_path=db_path)
 
         assert isinstance(reviews, list)
@@ -504,7 +504,7 @@ class TestAggregateDailyReviewCounts:
 
         assert isinstance(daily_counts, dict)
         # Today should have some reviews
-        today_str = date.today().isoformat()
+        today_str = datetime.now(timezone.utc).date().isoformat()
         assert today_str in daily_counts
         assert daily_counts[today_str] > 0
 
@@ -512,7 +512,7 @@ class TestAggregateDailyReviewCounts:
         """Test aggregating with specific date range."""
         db_path, vocab_ids, kanji_ids, review_ids = db_with_reviews_and_history
 
-        today = date.today()
+        today = datetime.now(timezone.utc).date()
         yesterday = today - timedelta(days=1)
 
         daily_counts = aggregate_daily_review_counts(
@@ -531,8 +531,8 @@ class TestAggregateDailyReviewCounts:
         db_path, vocab_ids, kanji_ids, review_ids = db_with_reviews_and_history
 
         # Use a date range that includes a day with no reviews
-        start = date.today() - timedelta(days=7)
-        end = date.today()
+        start = datetime.now(timezone.utc).date() - timedelta(days=7)
+        end = datetime.now(timezone.utc).date()
 
         daily_counts = aggregate_daily_review_counts(
             start_date=start,
@@ -553,12 +553,12 @@ class TestAggregateDailyReviewCounts:
         """Test aggregating with only start date."""
         db_path, vocab_ids, kanji_ids, review_ids = db_with_reviews_and_history
 
-        yesterday = date.today() - timedelta(days=1)
+        yesterday = datetime.now(timezone.utc).date() - timedelta(days=1)
         daily_counts = aggregate_daily_review_counts(start_date=yesterday, db_path=db_path)
 
         assert isinstance(daily_counts, dict)
         # Should have today's date
-        assert date.today().isoformat() in daily_counts
+        assert datetime.now(timezone.utc).date().isoformat() in daily_counts
 
 
 # Tests for calculate_average_review_duration
@@ -597,7 +597,7 @@ class TestCalculateAverageReviewDuration:
         """Test average duration with date filtering."""
         db_path, vocab_ids, kanji_ids, review_ids = db_with_reviews_and_history
 
-        today = date.today()
+        today = datetime.now(timezone.utc).date()
         avg_duration = calculate_average_review_duration(
             start_date=today,
             end_date=today,
@@ -611,7 +611,7 @@ class TestCalculateAverageReviewDuration:
         """Test average duration with only start date."""
         db_path, vocab_ids, kanji_ids, review_ids = db_with_reviews_and_history
 
-        yesterday = date.today() - timedelta(days=1)
+        yesterday = datetime.now(timezone.utc).date() - timedelta(days=1)
         avg_duration = calculate_average_review_duration(start_date=yesterday, db_path=db_path)
 
         assert isinstance(avg_duration, float)
@@ -766,7 +766,7 @@ class TestGetMCQAccuracyRate:
         """Test filtering by date range."""
         db_path, vocab_ids, kanji_ids, mcq_review_ids = db_with_mcq_reviews_and_history
 
-        today = date.today()
+        today = datetime.now(timezone.utc).date()
         accuracy = get_mcq_accuracy_rate(
             start_date=today,
             end_date=today,
@@ -780,7 +780,7 @@ class TestGetMCQAccuracyRate:
         """Test combined filtering (type + JLPT + date)."""
         db_path, vocab_ids, kanji_ids, mcq_review_ids = db_with_mcq_reviews_and_history
 
-        today = date.today()
+        today = datetime.now(timezone.utc).date()
         accuracy = get_mcq_accuracy_rate(
             start_date=today,
             end_date=today,
@@ -874,7 +874,7 @@ class TestGetMCQStatsByType:
         """Test filtering by date range."""
         db_path, vocab_ids, kanji_ids, mcq_review_ids = db_with_mcq_reviews_and_history
 
-        today = date.today()
+        today = datetime.now(timezone.utc).date()
         stats = get_mcq_stats_by_type(
             start_date=today,
             end_date=today,
@@ -888,7 +888,7 @@ class TestGetMCQStatsByType:
         """Test filtering by past date range returns zeros."""
         db_path, vocab_ids, kanji_ids, mcq_review_ids = db_with_mcq_reviews_and_history
 
-        past = date.today() - timedelta(days=7)
+        past = datetime.now(timezone.utc).date() - timedelta(days=7)
         stats = get_mcq_stats_by_type(
             start_date=past,
             end_date=past,
@@ -943,7 +943,7 @@ class TestGetMCQOptionDistribution:
         """Test filtering by date range."""
         db_path, vocab_ids, kanji_ids, mcq_review_ids = db_with_mcq_reviews_and_history
 
-        today = date.today()
+        today = datetime.now(timezone.utc).date()
         distribution = get_mcq_option_distribution(
             start_date=today,
             end_date=today,
@@ -960,7 +960,7 @@ class TestGetMCQOptionDistribution:
         """Test filtering by past date range returns zeros."""
         db_path, vocab_ids, kanji_ids, mcq_review_ids = db_with_mcq_reviews_and_history
 
-        past = date.today() - timedelta(days=7)
+        past = datetime.now(timezone.utc).date() - timedelta(days=7)
         distribution = get_mcq_option_distribution(
             start_date=past,
             end_date=past,

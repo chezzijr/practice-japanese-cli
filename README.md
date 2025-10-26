@@ -149,16 +149,16 @@ uv run japanese-cli flashcard review --limit 20
 ### 5. Try MCQ (Multiple Choice) Review
 ```bash
 # Basic MCQ review
-uv run japanese-cli flashcard mcq
+uv run japanese-cli mcq
 
 # MCQ for N5 vocabulary only
-uv run japanese-cli flashcard mcq --type vocab --level n5 --limit 10
+uv run japanese-cli mcq --type vocab --level n5 --limit 10
 
 # Mixed question types (word-to-meaning and meaning-to-word)
-uv run japanese-cli flashcard mcq --question-type mixed
+uv run japanese-cli mcq --question-type mixed
 
 # Review both vocab and kanji with English meanings
-uv run japanese-cli flashcard mcq --type both --language en
+uv run japanese-cli mcq --type both --language en
 ```
 
 ### 6. Track Your Progress

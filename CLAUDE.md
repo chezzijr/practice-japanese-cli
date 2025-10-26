@@ -426,22 +426,22 @@ distribution = get_mcq_option_distribution()
 ### CLI Command
 ```bash
 # Basic MCQ review
-japanese-cli flashcard mcq
+japanese-cli mcq
 
 # Filtered by type and level
-japanese-cli flashcard mcq --type vocab --level n5 --limit 10
+japanese-cli mcq --type vocab --level n5 --limit 10
 
 # Question mode options
-japanese-cli flashcard mcq --question-type word-to-meaning      # Show word, select meaning
-japanese-cli flashcard mcq --question-type meaning-to-word      # Show meaning, select word
-japanese-cli flashcard mcq --question-type mixed                # Random per question
+japanese-cli mcq --question-type word-to-meaning      # Show word, select meaning
+japanese-cli mcq --question-type meaning-to-word      # Show meaning, select word
+japanese-cli mcq --question-type mixed                # Random per question
 
 # Language options
-japanese-cli flashcard mcq --language vi  # Vietnamese meanings (default)
-japanese-cli flashcard mcq --language en  # English meanings
+japanese-cli mcq --language vi  # Vietnamese meanings (default)
+japanese-cli mcq --language en  # English meanings
 
 # Mixed vocab and kanji
-japanese-cli flashcard mcq --type both --limit 20
+japanese-cli mcq --type both --limit 20
 ```
 
 **Auto-creation**: The command auto-creates MCQ reviews for items that don't have them yet.
@@ -711,10 +711,10 @@ japanese-cli flashcard review
 japanese-cli flashcard review --level n5 --limit 20
 
 # MCQ (Multiple Choice Question) review
-japanese-cli flashcard mcq --type vocab --limit 10
+japanese-cli mcq --type vocab --limit 10
 
 # MCQ with all options
-japanese-cli flashcard mcq --type both --level n5 --question-type mixed --language vi
+japanese-cli mcq --type both --level n5 --question-type mixed --language vi
 
 # View progress
 japanese-cli progress show
