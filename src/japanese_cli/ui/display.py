@@ -693,13 +693,30 @@ def display_session_summary(
         content_lines.append("[bold]Next reviews:[/bold]")
         now = datetime.now(timezone.utc)
         for word, due_date in next_review_dates[:5]:
-            days = (due_date - now).days
-            if days == 0:
+            time_delta = due_date - now
+            total_seconds = time_delta.total_seconds()
+
+            # Format based on time until due
+            if total_seconds < 0:
+                # Overdue
                 time_str = "[red]Due now[/red]"
-            elif days == 1:
+            elif total_seconds < 60:
+                # Less than 1 minute
+                time_str = "[red]Due now[/red]"
+            elif total_seconds < 3600:
+                # Less than 1 hour - show minutes
+                minutes_until = int(total_seconds // 60)
+                time_str = f"[yellow]In {minutes_until} min[/yellow]"
+            elif total_seconds < 86400:
+                # Less than 1 day - show hours
+                hours = int(total_seconds // 3600)
+                time_str = f"[yellow]In {hours}h[/yellow]"
+            elif time_delta.days == 1:
+                # Exactly 1 day
                 time_str = "[yellow]Tomorrow[/yellow]"
             else:
-                time_str = f"[dim]In {days} days[/dim]"
+                # Multiple days
+                time_str = f"[dim]In {time_delta.days} days[/dim]"
             content_lines.append(f"  {word}: {time_str}")
 
         if len(next_review_dates) > 5:
@@ -1370,13 +1387,30 @@ def display_mcq_session_summary(
         content_lines.append("[bold]Next reviews:[/bold]")
         now = datetime.now(timezone.utc)
         for word, due_date in next_review_dates[:5]:
-            days = (due_date - now).days
-            if days == 0:
+            time_delta = due_date - now
+            total_seconds = time_delta.total_seconds()
+
+            # Format based on time until due
+            if total_seconds < 0:
+                # Overdue
                 time_str = "[red]Due now[/red]"
-            elif days == 1:
+            elif total_seconds < 60:
+                # Less than 1 minute
+                time_str = "[red]Due now[/red]"
+            elif total_seconds < 3600:
+                # Less than 1 hour - show minutes
+                minutes_until = int(total_seconds // 60)
+                time_str = f"[yellow]In {minutes_until} min[/yellow]"
+            elif total_seconds < 86400:
+                # Less than 1 day - show hours
+                hours = int(total_seconds // 3600)
+                time_str = f"[yellow]In {hours}h[/yellow]"
+            elif time_delta.days == 1:
+                # Exactly 1 day
                 time_str = "[yellow]Tomorrow[/yellow]"
             else:
-                time_str = f"[dim]In {days} days[/dim]"
+                # Multiple days
+                time_str = f"[dim]In {time_delta.days} days[/dim]"
             content_lines.append(f"  {word}: {time_str}")
 
         if len(next_review_dates) > 5:
