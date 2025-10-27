@@ -6,8 +6,9 @@ Contains Typer command groups for different functionality:
 - flashcard: Flashcard management
 - progress: Progress tracking and statistics
 - grammar: Grammar point management
+- chat_command: AI-powered chat assistant
 """
 
-from . import import_data, flashcard, progress, grammar
+from . import import_data, flashcard, progress, grammar, chat_command
 
-__all__ = ["import_data", "flashcard", "progress", "grammar"]
+__all__ = ["import_data", "flashcard", "progress", "grammar", "chat_command"]

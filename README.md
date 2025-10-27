@@ -57,14 +57,23 @@ A powerful command-line application for learning Japanese with intelligent space
   - JLPT level organization
   - Cross-reference with vocabulary
 
+- **AI Chat Assistant**: Natural language interface powered by Claude AI
+  - Interactive chat for vocabulary and kanji lookup
+  - Progress tracking and study recommendations
+  - Due review analysis and study planning
+  - Vietnamese learner support with Hán Việt awareness
+  - Multiple Claude models supported (Haiku 4.5 default for speed/cost)
+  - Powered by Strands Agents SDK with 4 specialized tools
+
 ### Future Features (Planned)
 - **Nearest Neighbor Clustering**: Group vocabularies by topic for contextual learning
-- **AI/LLM Integration**:
-  - Personalized study recommendations
-  - Practice conversations via MCP
+- **Advanced AI Features** (basic AI chat is now available!):
+  - Personalized study recommendations with ML
+  - Interactive Japanese conversation practice
   - Automatic exercise generation based on level
   - Knowledge assessment and gap analysis
-- **Enhanced Database Population**: AI-assisted content import from study materials
+  - AI-assisted content import from study materials
+  - Integration with external Japanese learning resources
 
 ## Why This Tool?
 
@@ -166,6 +175,159 @@ uv run japanese-cli progress set-level n4
 uv run japanese-cli progress stats --range 30d
 ```
 
+### 7. Chat with AI Assistant
+```bash
+# Start an interactive AI chat session
+uv run japanese-cli chat
+
+# Chat with verbose mode (see tool usage)
+uv run japanese-cli chat --verbose
+
+# Use different Claude model
+uv run japanese-cli chat --model claude-3-5-sonnet-20241022
+```
+
+## AI Chat Assistant
+
+The Japanese Learning CLI includes an **AI-powered chat assistant** that provides a natural language interface to your study database. Ask questions, get recommendations, and plan your studies conversationally.
+
+### Features
+
+The AI assistant can help you with:
+- **Vocabulary & Kanji Lookup**: "Show me N5 vocabulary about food"
+- **Progress Tracking**: "How's my progress?" or "What's my study streak?"
+- **Study Planning**: "What should I study today?"
+- **Due Reviews**: "How many reviews are due?" or "Show my due kanji reviews"
+
+The assistant uses **Claude AI** (Haiku 4.5 by default) with 4 specialized tools that query your local database:
+1. `get_vocabulary` - Search and filter vocabulary entries
+2. `get_kanji` - Search and filter kanji characters
+3. `get_progress_stats` - Retrieve learning statistics and metrics
+4. `get_due_reviews` - Check flashcard and MCQ reviews due for study
+
+### Setup (One-Time)
+
+#### 1. Get Your Anthropic API Key
+
+Visit [console.anthropic.com](https://console.anthropic.com/) to:
+1. Sign up or log in
+2. Navigate to API Keys section
+3. Create a new API key (starts with `sk-ant-api03-...`)
+4. Copy the key
+
+#### 2. Configure API Key (Choose One)
+
+**Option A: Environment File (.env) - Recommended**
+```bash
+# Copy the example file
+cp .env.example .env
+
+# Add your API key to .env
+echo "ANTHROPIC_API_KEY=sk-ant-api03-your-key-here" > .env
+```
+
+**Option B: Environment Variable**
+```bash
+# For current session
+export ANTHROPIC_API_KEY=sk-ant-api03-your-key-here
+
+# Or add to your shell profile (~/.bashrc, ~/.zshrc)
+echo 'export ANTHROPIC_API_KEY=sk-ant-api03-your-key-here' >> ~/.bashrc
+```
+
+**Option C: Interactive Prompt**
+
+Don't configure anything - the CLI will prompt you to enter the API key when you run `japanese-cli chat`
+
+### Usage
+
+#### Basic Chat
+```bash
+uv run japanese-cli chat
+```
+
+You'll see a welcome panel explaining the assistant's capabilities. Type your questions naturally!
+
+#### Example Conversations
+
+**Finding Vocabulary:**
+```
+You: Show me N5 vocabulary about eating
+Assistant: [Uses get_vocabulary tool]
+Found vocabulary entries:
+1. 食べる[たべる] - to eat (Verb, N5)
+```
+
+**Checking Progress:**
+```
+You: How's my progress?
+Assistant: [Uses get_progress_stats tool]
+You're currently studying N5 with a 5-day study streak!
+You have 564 vocabulary words and 103 kanji.
+Keep up the great work! 頑張ってください！
+```
+
+**Study Planning:**
+```
+You: What should I study today?
+Assistant: [Uses get_due_reviews tool]
+You have 9 reviews due today:
+- 4 flashcard reviews
+- 5 MCQ quizzes
+
+I recommend starting with the flashcard reviews!
+```
+
+#### Advanced Options
+
+```bash
+# Verbose mode - see tool usage details
+uv run japanese-cli chat --verbose
+
+# More creative responses
+uv run japanese-cli chat --temperature 0.9
+
+# Use Sonnet for more complex explanations
+uv run japanese-cli chat --model claude-3-5-sonnet-20241022
+
+# Use Opus for most capable analysis
+uv run japanese-cli chat --model claude-3-opus-20240229
+```
+
+#### Model Comparison
+
+| Model | Speed | Cost/Session | Best For |
+|-------|-------|--------------|----------|
+| **Haiku 4.5** (default) | ⚡ Fast | ~$0.005-0.02 | Quick queries, vocab lookup |
+| Sonnet 3.5 | Medium | ~$0.05-0.20 | Complex explanations |
+| Opus 3 | Slower | ~$0.25-1.00 | Advanced analysis |
+
+**Default model**: Claude Haiku 4.5 provides excellent quality with ~10x lower cost than Sonnet and ~3x faster responses.
+
+### Cost Information
+
+Using the Claude API incurs costs based on usage:
+
+**Haiku 4.5 Pricing** (as of 2025):
+- Input: $0.25 per million tokens
+- Output: $1.25 per million tokens
+
+**Typical chat session costs**:
+- Short queries (3-5 exchanges): ~$0.005-0.01
+- Medium sessions (10-15 exchanges): ~$0.01-0.02
+- Long sessions (20+ exchanges): ~$0.02-0.05
+
+For most users, a full month of regular usage costs less than $1-2 with Haiku 4.5.
+
+### Exiting Chat
+
+Type any of these commands to exit:
+- `quit`
+- `exit`
+- `/q`
+- Press `Ctrl+C`
+
+
 ## Technical Details
 
 ### Architecture
@@ -190,6 +352,50 @@ This application uses FSRS (Free Spaced Repetition Scheduler), a modern alternat
 - Tracks card difficulty and stability dynamically
 - Adapts to individual learning patterns
 - Provides more accurate scheduling than traditional SRS
+
+### MCQ System Architecture
+
+The Multiple Choice Question (MCQ) system provides an alternative review mode with intelligent distractor generation.
+
+#### Question Types
+1. **Word→Meaning**: Show Japanese word/kanji, select correct Vietnamese/English meaning
+2. **Meaning→Word**: Show Vietnamese/English meaning, select correct Japanese word/kanji
+
+#### Distractor Selection Strategies
+
+The `MCQGenerator` uses 4 intelligent strategies to create challenging but fair questions:
+
+1. **Same JLPT Level** - Matches difficulty level for fair challenge
+   - Queries items with matching `jlpt_level`
+   - Randomly selects up to 10 candidates
+
+2. **Similar Meanings** - Semantic similarity via keyword matching
+   - Extracts keywords (first 2 words) from meanings
+   - Uses SQL LIKE queries to find semantically related items
+
+3. **Similar Readings** - Phonetic similarity
+   - For vocabulary: Prefix matching (first 2 characters of reading)
+   - For kanji: On-reading matching
+
+4. **Visually Similar** (kanji only) - Character similarity
+   - Same radical matching
+   - Similar stroke count (±2 strokes)
+
+All strategies are combined, shuffled, and limited to 3 distractors + 1 correct answer for each question.
+
+#### Key Design Decisions
+
+**Separate FSRS Tracking**: MCQ reviews have independent scheduling from flashcard reviews
+- *Rationale*: Different review modes have different difficulty levels
+- Allows practicing the same item via both flashcards and MCQ
+
+**Dynamic Generation**: Questions generated on-the-fly, not stored in database
+- *Rationale*: Saves storage, ensures variety, enables future AI enhancement
+- Distractors can vary each review session
+
+**Binary FSRS Ratings**: Correct answer = Rating.Good (3), Incorrect = Rating.Again (1)
+- *Rationale*: MCQ has objective correctness, no subjective "hard/easy"
+- Simpler than 4-option rating for multiple choice context
 
 ## Project Structure
 ```
@@ -225,11 +431,20 @@ practice-japanese-cli/
 │       │   ├── kanjidic.py
 │       │   ├── jlpt.py
 │       │   └── utils.py
+│       ├── ai/                   # AI chat assistant (Strands Agents + Claude)
+│       │   ├── agent.py         # Agent configuration and creation
+│       │   ├── chat.py          # Interactive chat loop with Rich UI
+│       │   └── tools/           # Custom tools for database interaction
+│       │       ├── vocabulary.py # get_vocabulary tool
+│       │       ├── kanji.py     # get_kanji tool
+│       │       ├── progress.py  # get_progress_stats tool
+│       │       └── reviews.py   # get_due_reviews tool
 │       ├── cli/                  # CLI command implementations
 │       │   ├── flashcard.py     # Flashcard commands
 │       │   ├── mcq.py           # MCQ command
 │       │   ├── progress.py      # Progress tracking
 │       │   ├── grammar.py       # Grammar commands
+│       │   ├── chat_command.py  # AI chat command
 │       │   └── import_data.py   # Data import commands
 │       └── ui/                   # Rich terminal UI
 │           ├── display.py       # Display components
@@ -351,6 +566,11 @@ Core dependencies:
 - `pydantic` - Data validation
 - `wanakana-python` - Japanese text processing (hiragana/katakana conversion)
 
+AI Chat Assistant dependencies:
+- `strands-agents[anthropic]` - Agent framework with Claude integration
+- `strands-agents-tools` - Tool management and MCP support
+- `anthropic` - Claude AI SDK (included with strands-agents[anthropic])
+
 ## Contributing
 
 Contributions are welcome! This is a personal learning project, but if you find it useful and want to improve it:
@@ -368,6 +588,8 @@ MIT License - feel free to use and modify for your own learning!
 
 - [JMdict/KANJIDIC2](https://www.edrdg.org/wiki/index.php/JMdict-EDICT_Dictionary_Project) - Electronic Dictionary Research and Development Group
 - [FSRS](https://github.com/open-spaced-repetition/fsrs4anki) - Free Spaced Repetition Scheduler
+- [Strands Agents](https://github.com/strands-ai/strands-agents) - Model-agnostic agent framework
+- [Anthropic Claude](https://www.anthropic.com/claude) - AI language model for chat assistant
 - JLPT vocabulary lists from various community sources
 
 ## Support
@@ -376,4 +598,4 @@ For bugs, feature requests, or questions, please open an issue on GitHub.
 
 ---
 
-**Note**: This project is feature-complete and stable (MVP v0.1.0). The core functionality is production-ready for personal use. Future enhancements (AI integration, clustering, etc.) are documented in [PLAN.md](PLAN.md).
+**Note**: This project is feature-complete and stable (MVP v0.1.0). The core functionality, including the AI chat assistant powered by Claude, is production-ready for personal use. Future enhancements (clustering, advanced AI features, etc.) are documented in [PLAN.md](PLAN.md).

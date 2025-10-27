@@ -140,6 +140,29 @@ japanese-cli flashcard review --type vocab      # Vocab only
 
 ---
 
+## Phase 7.5: MCQ (Multiple Choice) Review System ✅ COMPLETE
+
+**Goal**: Alternative review mode with intelligent distractor generation and independent FSRS scheduling.
+
+**Note**: Added as enhancement to Phase 7, not in original plan. Provides variety in review methods and improves engagement.
+
+**Deliverables**: MCQGenerator (4 distractor strategies), MCQReviewScheduler (binary FSRS ratings), 2 new tables (mcq_reviews, mcq_review_history), MCQ CLI command, 3 statistics functions (accuracy, type breakdown, selection bias)
+
+**Key Features**: Word→Meaning/Meaning→Word questions, 4 distractor strategies (JLPT level, semantic similarity, phonetic similarity, visual similarity), independent FSRS tracking, dynamic question generation, Vietnamese/English support, auto-creation of reviews
+
+**Working Commands**:
+```bash
+japanese-cli mcq                          # All due MCQ reviews
+japanese-cli mcq --type vocab --level n5  # N5 vocabulary only
+japanese-cli mcq --type both --limit 20   # Mixed vocab and kanji
+japanese-cli mcq --question-type mixed    # Random question types
+japanese-cli mcq --language en            # Use English meanings
+```
+
+**Test Results**: 165 MCQ tests passing (100%), 90-98% coverage per module (database, generator, scheduler, UI, CLI, statistics)
+
+---
+
 ## Phase 8: Progress Tracking ✅ COMPLETE
 
 **Goal**: Progress dashboard and statistics.
@@ -287,15 +310,16 @@ japanese-cli grammar edit 1                 # Edit existing
 
 ## Current Status Summary
 
-**Progress**: 10/10 phases complete (100% MVP done) ✅ | **Tests**: 538 passing | **Coverage**: 86% overall
+**Progress**: 11/11 phases complete (100% MVP + MCQ done) ✅ | **Tests**: 716 passing | **Coverage**: 88% overall
 
-### All Phases Complete (1-10) ✅
-All MVP features implemented and tested. See individual phase sections above for detailed deliverables.
+### All Phases Complete (1-10 + 7.5 MCQ) ✅
+All MVP features implemented and tested, plus MCQ review system. See individual phase sections above for detailed deliverables.
 
 ### Test Suite Status
-- **538 tests passing** (0 failing, 0 skipped, 0 warnings)
-- **86% overall coverage** (exceeded 85% target)
-- Key modules: statistics.py (100%), progress.py (99%), grammar.py (98%), main.py (98%), ui/display.py (96%), scheduler.py (95%), fsrs.py (92%)
+- **716 tests passing** (0 failing, 0 skipped, 0 warnings)
+- **88% overall coverage** (exceeded 85% target)
+- Key modules: statistics.py (100%), ui/furigana.py (100%), srs/mcq_generator.py (99%), progress.py (99%), grammar.py (98%), main.py (98%), ui/display.py (96%), srs/scheduler.py (95%), srs/mcq_scheduler.py (95%), fsrs.py (92%)
+- MCQ-specific tests: 165/165 passing across 6 sub-phases (database, generator, scheduler, UI, CLI, statistics)
 
 ### All Working Commands
 ```bash
@@ -313,6 +337,11 @@ japanese-cli flashcard show ID --type {vocab|kanji}
 japanese-cli flashcard add --type {vocab|kanji}       # Interactive
 japanese-cli flashcard edit ID --type {vocab|kanji}   # Interactive
 japanese-cli flashcard review [--limit N] [--level LEVEL] [--type TYPE]
+
+# MCQ (Multiple Choice) Reviews
+japanese-cli mcq [--type {vocab|kanji|both}] [--level LEVEL] [--limit N]
+japanese-cli mcq --question-type {word-to-meaning|meaning-to-word|mixed}
+japanese-cli mcq --language {vi|en}                   # Vietnamese or English
 
 # Progress Tracking
 japanese-cli progress show                             # Dashboard

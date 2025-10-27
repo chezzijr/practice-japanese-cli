@@ -16,7 +16,7 @@ from japanese_cli.database import (
     init_progress,
     database_exists,
 )
-from japanese_cli.cli import import_data, flashcard, progress, grammar, mcq
+from japanese_cli.cli import import_data, flashcard, progress, grammar, mcq, chat_command
 
 # Initialize console for rich output
 console = Console()
@@ -33,6 +33,7 @@ app.add_typer(import_data.app, name="import")
 app.add_typer(flashcard.app, name="flashcard")
 app.add_typer(progress.app, name="progress")
 app.add_typer(grammar.app, name="grammar")
+app.add_typer(chat_command.app, name="chat")
 
 # Register MCQ command (single command, not a group)
 app.command(name="mcq", help="Start an interactive multiple-choice question (MCQ) review session")(mcq.mcq)
