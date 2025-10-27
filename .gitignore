@@ -11,9 +11,7 @@ wheels/
 
 # Project-specific data files
 data/japanese.db
-data/dict/*.xml
-data/dict/*.gz
-data/dict/*.json
+data/dict/*
 
 # Keep directory structure
 !data/.gitkeep
