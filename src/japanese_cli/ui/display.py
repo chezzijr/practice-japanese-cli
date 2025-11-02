@@ -402,6 +402,11 @@ def display_card_question(
             content_lines.append(f"  [dim]{meaning}[/dim]")
         content_lines.append("")
 
+    # Vietnamese reading for kanji (as a hint)
+    if item_type == "kanji" and hasattr(item, 'vietnamese_reading') and item.vietnamese_reading:
+        content_lines.append(f"[dim]Hán Việt:[/dim] [cyan]{item.vietnamese_reading.upper()}[/cyan]")
+        content_lines.append("")
+
     # Metadata hints
     hints = []
     if item.jlpt_level:
