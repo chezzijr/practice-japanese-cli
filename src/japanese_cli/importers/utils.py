@@ -252,3 +252,90 @@ def ensure_data_directory(data_dir: Optional[Path] = None) -> Path:
     data_dir.mkdir(parents=True, exist_ok=True)
 
     return data_dir
+
+
+def download_jlpt_files(
+    level: str,
+    data_dir: Optional[Path] = None,
+    force: bool = False,
+    show_progress: bool = True,
+) -> bool:
+    """
+    Download JLPT vocabulary and kanji reference files for a specific level.
+
+    Downloads from GitHub repository if files don't exist locally.
+    Files are downloaded to the user data directory (~/.local/share/japanese-cli/dict/).
+
+    Args:
+        level: JLPT level (n1, n2, n3, n4, or n5)
+        data_dir: Target directory (defaults to user data directory)
+        force: Force re-download even if files exist
+        show_progress: Whether to show download progress
+
+    Returns:
+        bool: True if files are available (downloaded or already exist), False otherwise
+
+    Raises:
+        ValueError: If level is invalid
+        requests.RequestException: If download fails
+
+    Example:
+        >>> download_jlpt_files("n5")
+        True
+        >>> download_jlpt_files("n3", force=True)  # Re-download N3 files
+        True
+    """
+    console = Console()
+
+    # Validate level
+    valid_levels = {"n1", "n2", "n3", "n4", "n5"}
+    if level not in valid_levels:
+        raise ValueError(f"Invalid level: {level}. Valid levels: {valid_levels}")
+
+    # Determine data directory (always use user data directory for downloads)
+    if data_dir is None:
+        data_dir = Path.home() / ".local" / "share" / "japanese-cli" / "dict"
+
+    data_dir = Path(data_dir)
+    data_dir.mkdir(parents=True, exist_ok=True)
+
+    # Define file paths
+    vocab_file = data_dir / f"{level}_vocab.csv"
+    kanji_file = data_dir / f"{level}_kanji.txt"
+
+    # Check if files already exist (unless force=True)
+    if not force and vocab_file.exists() and kanji_file.exists():
+        console.print(f"✓ {level.upper()} files already exist", style="dim green")
+        return True
+
+    # GitHub raw content URLs
+    base_url = "https://raw.githubusercontent.com/chezzijr/practice-japanese-cli/main/data/dict"
+    vocab_url = f"{base_url}/{level}_vocab.csv"
+    kanji_url = f"{base_url}/{level}_kanji.txt"
+
+    try:
+        console.print(f"\n[bold blue]Downloading {level.upper()} reference files...[/bold blue]")
+
+        # Download vocabulary file
+        if force or not vocab_file.exists():
+            console.print(f"  Downloading {level}_vocab.csv...")
+            download_file(vocab_url, vocab_file, show_progress=show_progress)
+
+        # Download kanji file
+        if force or not kanji_file.exists():
+            console.print(f"  Downloading {level}_kanji.txt...")
+            download_file(kanji_url, kanji_file, show_progress=show_progress)
+
+        console.print(f"✓ {level.upper()} files downloaded successfully\n", style="bold green")
+        return True
+
+    except requests.RequestException as e:
+        console.print(
+            f"[bold red]Failed to download {level.upper()} files from GitHub[/bold red]\n"
+            f"Error: {str(e)}\n"
+            f"Please check your internet connection or download files manually from:\n"
+            f"  {vocab_url}\n"
+            f"  {kanji_url}",
+            style="red"
+        )
+        return False

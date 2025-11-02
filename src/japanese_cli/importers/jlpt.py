@@ -9,6 +9,8 @@ import csv
 from pathlib import Path
 from typing import Dict, Optional, Set, Tuple
 
+from .utils import download_jlpt_files
+
 
 class JLPTLevelMapper:
     """
@@ -32,19 +34,26 @@ class JLPTLevelMapper:
 
     VALID_LEVELS = {"n1", "n2", "n3", "n4", "n5"}
 
-    def __init__(self, data_dir: Optional[Path] = None, levels: Optional[set] = None):
+    def __init__(
+        self,
+        data_dir: Optional[Path] = None,
+        levels: Optional[set] = None,
+        auto_download: bool = True,
+    ):
         """
         Initialize JLPT level mapper and load reference lists.
 
         Uses smart path resolution that checks for project directory first,
-        then falls back to user data directory.
+        then falls back to user data directory. If files are missing and
+        auto_download is True, downloads them from GitHub.
 
         Args:
             data_dir: Path to data/dict/ directory (defaults to auto-detected path)
             levels: Set of levels to load (default: {"n5"} for backward compatibility)
+            auto_download: Auto-download missing files from GitHub (default: True)
 
         Raises:
-            FileNotFoundError: If reference files are not found
+            FileNotFoundError: If reference files are not found and auto_download=False
             ValueError: If reference files are malformed or invalid level specified
         """
         if data_dir is None:
@@ -60,6 +69,7 @@ class JLPTLevelMapper:
                 data_dir = user_data_dir
 
         self.data_dir = Path(data_dir)
+        self.auto_download = auto_download
 
         # Validate levels
         if levels is None:
@@ -90,6 +100,8 @@ class JLPTLevelMapper:
         """
         Load vocabulary list for a specific JLPT level from CSV file.
 
+        Automatically downloads missing files if auto_download is enabled.
+
         Args:
             level: JLPT level (n1, n2, n3, n4, or n5)
 
@@ -99,16 +111,27 @@ class JLPTLevelMapper:
             ...
 
         Raises:
-            FileNotFoundError: If vocab CSV file is not found
+            FileNotFoundError: If vocab CSV file is not found and auto_download=False
             ValueError: If CSV is malformed
         """
         vocab_file = self.data_dir / f"{level}_vocab.csv"
 
+        # Auto-download if file doesn't exist
         if not vocab_file.exists():
-            raise FileNotFoundError(
-                f"{level.upper()} vocabulary file not found: {vocab_file}\n"
-                f"Please ensure {level}_vocab.csv exists in {self.data_dir}"
-            )
+            if self.auto_download:
+                # Try to download the files
+                success = download_jlpt_files(level, data_dir=self.data_dir, show_progress=True)
+                if not success:
+                    raise FileNotFoundError(
+                        f"{level.upper()} vocabulary file not found: {vocab_file}\n"
+                        f"Auto-download failed. Please ensure {level}_vocab.csv exists in {self.data_dir}"
+                    )
+            else:
+                raise FileNotFoundError(
+                    f"{level.upper()} vocabulary file not found: {vocab_file}\n"
+                    f"Please ensure {level}_vocab.csv exists in {self.data_dir}\n"
+                    f"Or enable auto_download=True to download from GitHub"
+                )
 
         with open(vocab_file, "r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
@@ -132,21 +155,34 @@ class JLPTLevelMapper:
         """
         Load kanji list for a specific JLPT level from text file.
 
+        Automatically downloads missing files if auto_download is enabled.
+
         Args:
             level: JLPT level (n1, n2, n3, n4, or n5)
 
         Expected format: One kanji character per line
 
         Raises:
-            FileNotFoundError: If kanji text file is not found
+            FileNotFoundError: If kanji text file is not found and auto_download=False
         """
         kanji_file = self.data_dir / f"{level}_kanji.txt"
 
+        # Auto-download if file doesn't exist (only if vocab didn't already trigger download)
         if not kanji_file.exists():
-            raise FileNotFoundError(
-                f"{level.upper()} kanji file not found: {kanji_file}\n"
-                f"Please ensure {level}_kanji.txt exists in {self.data_dir}"
-            )
+            if self.auto_download:
+                # Try to download the files (download_jlpt_files handles both vocab and kanji)
+                success = download_jlpt_files(level, data_dir=self.data_dir, show_progress=True)
+                if not success:
+                    raise FileNotFoundError(
+                        f"{level.upper()} kanji file not found: {kanji_file}\n"
+                        f"Auto-download failed. Please ensure {level}_kanji.txt exists in {self.data_dir}"
+                    )
+            else:
+                raise FileNotFoundError(
+                    f"{level.upper()} kanji file not found: {kanji_file}\n"
+                    f"Please ensure {level}_kanji.txt exists in {self.data_dir}\n"
+                    f"Or enable auto_download=True to download from GitHub"
+                )
 
         with open(kanji_file, "r", encoding="utf-8") as f:
             for line in f:

@@ -20,6 +20,18 @@ data/dict/*
 !data/.gitkeep
 !data/dict/.gitkeep
 
+# JLPT reference files (needed for filtering during import)
+!data/dict/n1_vocab.csv
+!data/dict/n1_kanji.txt
+!data/dict/n2_vocab.csv
+!data/dict/n2_kanji.txt
+!data/dict/n3_vocab.csv
+!data/dict/n3_kanji.txt
+!data/dict/n4_vocab.csv
+!data/dict/n4_kanji.txt
+!data/dict/n5_vocab.csv
+!data/dict/n5_kanji.txt
+
 # IDE and editor files
 .vscode/
 .idea/
