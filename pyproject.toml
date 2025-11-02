@@ -33,6 +33,9 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/japanese_cli"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"data/dict" = "data/dict"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]

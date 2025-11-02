@@ -36,8 +36,11 @@ class JLPTLevelMapper:
         """
         Initialize JLPT level mapper and load reference lists.
 
+        Uses smart path resolution that checks for project directory first,
+        then falls back to user data directory.
+
         Args:
-            data_dir: Path to data/dict/ directory (defaults to project data/dict/)
+            data_dir: Path to data/dict/ directory (defaults to auto-detected path)
             levels: Set of levels to load (default: {"n5"} for backward compatibility)
 
         Raises:
@@ -45,8 +48,16 @@ class JLPTLevelMapper:
             ValueError: If reference files are malformed or invalid level specified
         """
         if data_dir is None:
-            # Default to project data/dict/ directory
-            data_dir = Path(__file__).parent.parent.parent.parent / "data" / "dict"
+            # Smart path resolution: check project dir first, then user data dir
+            project_data_dir = Path(__file__).parent.parent.parent.parent / "data" / "dict"
+            user_data_dir = Path.home() / ".local" / "share" / "japanese-cli" / "dict"
+
+            # Prefer project directory if it exists (development mode)
+            if project_data_dir.exists():
+                data_dir = project_data_dir
+            else:
+                # Otherwise use user data directory (installed mode)
+                data_dir = user_data_dir
 
         self.data_dir = Path(data_dir)
 

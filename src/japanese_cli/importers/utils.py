@@ -223,19 +223,30 @@ def ensure_data_directory(data_dir: Optional[Path] = None) -> Path:
     """
     Ensure data directory exists and return its path.
 
+    Uses smart path resolution that checks for project directory first,
+    then falls back to user data directory.
+
     Args:
-        data_dir: Custom data directory path (defaults to project data/dict/)
+        data_dir: Custom data directory path (defaults to auto-detected path)
 
     Returns:
         Path: Path to data directory
 
     Example:
         >>> ensure_data_directory()
-        Path('data/dict')
+        Path('~/.local/share/japanese-cli/dict')  # or project data/dict in dev mode
     """
     if data_dir is None:
-        # Default to project data/dict/ directory
-        data_dir = Path(__file__).parent.parent.parent.parent / "data" / "dict"
+        # Smart path resolution: check project dir first, then user data dir
+        project_data_dir = Path(__file__).parent.parent.parent.parent / "data" / "dict"
+        user_data_dir = Path.home() / ".local" / "share" / "japanese-cli" / "dict"
+
+        # Prefer project directory if it exists (development mode)
+        if project_data_dir.exists():
+            data_dir = project_data_dir
+        else:
+            # Otherwise use user data directory (installed mode)
+            data_dir = user_data_dir
 
     data_dir = Path(data_dir)
     data_dir.mkdir(parents=True, exist_ok=True)
