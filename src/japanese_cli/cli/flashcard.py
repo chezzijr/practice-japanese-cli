@@ -93,10 +93,14 @@ def _add_vocabulary():
         console.print("[yellow]No vocabulary added.[/yellow]")
         return
 
-    # Add to database
-    vocab_id = add_vocabulary(**data)
-
-    console.print(f"\n[green]✓ Vocabulary added successfully![/green] (ID: {vocab_id})")
+    # Check if this is an existing vocabulary (auto-filled from database)
+    if 'id' in data:
+        vocab_id = data.pop('id')  # Extract ID and remove from data dict
+        console.print(f"\n[yellow]Vocabulary already exists in database (ID: {vocab_id})[/yellow]")
+    else:
+        # Add to database (new vocabulary)
+        vocab_id = add_vocabulary(**data)
+        console.print(f"\n[green]✓ Vocabulary added successfully![/green] (ID: {vocab_id})")
 
     # Ask if user wants to add to review queue
     if confirm_action("Add to review queue for spaced repetition?", default=True):
@@ -125,10 +129,14 @@ def _add_kanji():
         console.print("[yellow]No kanji added.[/yellow]")
         return
 
-    # Add to database
-    kanji_id = add_kanji(**data)
-
-    console.print(f"\n[green]✓ Kanji added successfully![/green] (ID: {kanji_id})")
+    # Check if this is an existing kanji (auto-filled from database)
+    if 'id' in data:
+        kanji_id = data.pop('id')  # Extract ID and remove from data dict
+        console.print(f"\n[yellow]Kanji already exists in database (ID: {kanji_id})[/yellow]")
+    else:
+        # Add to database (new kanji)
+        kanji_id = add_kanji(**data)
+        console.print(f"\n[green]✓ Kanji added successfully![/green] (ID: {kanji_id})")
 
     # Ask if user wants to add to review queue
     if confirm_action("Add to review queue for spaced repetition?", default=True):

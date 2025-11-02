@@ -14,7 +14,12 @@ from rich.prompt import Confirm, IntPrompt, Prompt
 from rich.table import Table
 
 from ..models import Vocabulary, Kanji, GrammarPoint, Example
-from ..database import search_vocabulary_by_reading, search_kanji_by_reading
+from ..database import (
+    search_vocabulary_by_reading,
+    search_vocabulary,
+    search_kanji_by_reading,
+    get_kanji_by_character
+)
 from .japanese_utils import is_romaji, romaji_to_hiragana, contains_japanese
 
 console = Console()
@@ -55,6 +60,7 @@ def prompt_vocabulary_data(existing: Optional[Vocabulary] = None) -> Optional[di
 
         # Track if we auto-filled from database lookup
         auto_filled = False
+        existing_id = None  # Store ID if auto-filled from existing vocabulary
 
         while not word:
             word_input = Prompt.ask(
@@ -79,6 +85,7 @@ def prompt_vocabulary_data(existing: Optional[Vocabulary] = None) -> Optional[di
                     if selected:
                         # Auto-fill from selected vocabulary
                         console.print("[green]✓ Auto-filled from database[/green]\n")
+                        existing_id = selected['id']  # Store the existing ID
                         word = selected['word']
                         reading = selected['reading']
 
@@ -114,9 +121,49 @@ def prompt_vocabulary_data(existing: Optional[Vocabulary] = None) -> Optional[di
 
             # Check if contains Japanese characters
             elif contains_japanese(word_input):
-                # Valid Japanese input
-                word = word_input
-                break
+                # Search database for matching vocabulary
+                console.print(f"[dim]→ Searching database for '{word_input}'...[/dim]")
+                matches = search_vocabulary(word_input)
+
+                if matches:
+                    # Show selection menu
+                    selected = select_from_vocabulary_matches(matches, word_input)
+
+                    if selected:
+                        # Auto-fill from selected vocabulary
+                        console.print("[green]✓ Auto-filled from database[/green]\n")
+                        existing_id = selected['id']  # Store the existing ID
+                        word = selected['word']
+                        reading = selected['reading']
+
+                        # Parse meanings from JSON
+                        meanings_data = json.loads(selected['meanings']) if isinstance(selected['meanings'], str) else selected['meanings']
+                        meanings = meanings_data
+
+                        # Optional fields
+                        vietnamese_reading = selected.get('vietnamese_reading')
+                        jlpt_level = selected.get('jlpt_level')
+                        part_of_speech = selected.get('part_of_speech')
+
+                        # Parse tags from JSON
+                        tags_data = selected.get('tags')
+                        if tags_data:
+                            tags = json.loads(tags_data) if isinstance(tags_data, str) else tags_data
+                        else:
+                            tags = []
+
+                        notes = selected.get('notes')
+                        auto_filled = True
+                        break
+                    else:
+                        # User cancelled selection, re-prompt
+                        word = None
+                        continue
+                else:
+                    # No matches found - allow as new word entry
+                    console.print(f"[yellow]No matches found for '{word_input}'. Adding as new word.[/yellow]")
+                    word = word_input
+                    break
             else:
                 # Invalid input (not Japanese, not romaji)
                 console.print("[red]✗ Invalid input. Please enter Japanese characters or romaji.[/red]\n")
@@ -128,19 +175,19 @@ def prompt_vocabulary_data(existing: Optional[Vocabulary] = None) -> Optional[di
             # Reading (required)
             reading = Prompt.ask(
                 "[bold]Reading[/bold] (hiragana/katakana)",
-                default=existing.reading if existing else None
+                default=existing.get('reading') if existing else None
             )
 
             # Vietnamese meaning (required)
             vi_meaning = Prompt.ask(
                 "[bold]Vietnamese meaning[/bold]",
-                default=existing.meanings.get("vi", [""])[0] if existing else None
+                default=existing.get('meanings', {}).get("vi", [""])[0] if existing else None
             )
 
             # English meaning (optional)
             en_meaning = Prompt.ask(
                 "English meaning [dim](optional)[/dim]",
-                default=existing.meanings.get("en", [""])[0] if existing and existing.meanings.get("en") else "",
+                default=existing.get('meanings', {}).get("en", [""])[0] if existing and existing.get('meanings', {}).get("en") else "",
                 show_default=False
             )
 
@@ -155,11 +202,11 @@ def prompt_vocabulary_data(existing: Optional[Vocabulary] = None) -> Optional[di
             console.print(f"[dim]Meanings: {meanings}[/dim]\n")
 
         # Determine defaults (from existing, or auto-filled, or none)
-        default_vietnamese_reading = vietnamese_reading or (existing.vietnamese_reading if existing else "")
-        default_jlpt = jlpt_level or (existing.jlpt_level if existing else "")
-        default_pos = part_of_speech or (existing.part_of_speech if existing else "")
-        default_tags = tags if tags else (existing.tags if existing else [])
-        default_notes = notes or (existing.notes if existing else "")
+        default_vietnamese_reading = vietnamese_reading or (existing.get('vietnamese_reading') if existing else "")
+        default_jlpt = jlpt_level or (existing.get('jlpt_level') if existing else "")
+        default_pos = part_of_speech or (existing.get('part_of_speech') if existing else "")
+        default_tags = tags if tags else (existing.get('tags') if existing else [])
+        default_notes = notes or (existing.get('notes') if existing else "")
 
         # Vietnamese reading (optional)
         vietnamese_reading_input = Prompt.ask(
@@ -219,6 +266,10 @@ def prompt_vocabulary_data(existing: Optional[Vocabulary] = None) -> Optional[di
             # Validate with Pydantic (create temporary model to check)
             Vocabulary(**vocab_data)
 
+            # If auto-filled from database, include the existing ID
+            if auto_filled and existing_id is not None:
+                vocab_data['id'] = existing_id
+
             # Return data for database insertion
             return vocab_data
 
@@ -267,6 +318,7 @@ def prompt_kanji_data(existing: Optional[Kanji] = None) -> Optional[dict]:
 
         # Track if we auto-filled from database lookup
         auto_filled = False
+        existing_id = None  # Store ID if auto-filled from existing kanji
 
         while not character:
             character_input = Prompt.ask(
@@ -291,6 +343,7 @@ def prompt_kanji_data(existing: Optional[Kanji] = None) -> Optional[dict]:
                     if selected:
                         # Auto-fill from selected kanji
                         console.print("[green]✓ Auto-filled from database[/green]\n")
+                        existing_id = selected['id']  # Store the existing ID
                         character = selected['character']
 
                         # Parse readings from JSON
@@ -328,9 +381,41 @@ def prompt_kanji_data(existing: Optional[Kanji] = None) -> Optional[dict]:
             elif len(character_input) == 1:
                 from .japanese_utils import is_kanji
                 if is_kanji(character_input):
-                    # Valid kanji input
-                    character = character_input
-                    break
+                    # Check if kanji exists in database
+                    console.print(f"[dim]→ Checking database for '{character_input}'...[/dim]")
+                    existing = get_kanji_by_character(character_input)
+
+                    if existing:
+                        # Kanji already exists - auto-fill from database
+                        console.print("[green]✓ Kanji found in database! Auto-filling...[/green]\n")
+                        existing_id = existing['id']  # Store the existing ID
+                        character = existing['character']
+
+                        # Parse readings from JSON
+                        on_data = existing.get('on_readings')
+                        on_readings = json.loads(on_data) if isinstance(on_data, str) else (on_data or [])
+
+                        kun_data = existing.get('kun_readings')
+                        kun_readings = json.loads(kun_data) if isinstance(kun_data, str) else (kun_data or [])
+
+                        # Parse meanings from JSON
+                        meanings_data = json.loads(existing['meanings']) if isinstance(existing['meanings'], str) else existing['meanings']
+                        meanings = meanings_data
+
+                        # Optional fields
+                        vietnamese_reading = existing.get('vietnamese_reading')
+                        jlpt_level = existing.get('jlpt_level')
+                        stroke_count = existing.get('stroke_count')
+                        radical = existing.get('radical')
+                        notes = existing.get('notes')
+
+                        auto_filled = True
+                        break
+                    else:
+                        # Kanji not in database - allow manual entry
+                        console.print(f"[yellow]Kanji '{character_input}' not found in database. Adding as new kanji.[/yellow]")
+                        character = character_input
+                        break
                 else:
                     console.print("[red]✗ Please enter a kanji character (not hiragana or katakana).[/red]\n")
                     character = None
@@ -346,7 +431,7 @@ def prompt_kanji_data(existing: Optional[Kanji] = None) -> Optional[dict]:
             # On-yomi readings (optional, comma-separated)
             on_readings_str = Prompt.ask(
                 "On-yomi readings [dim](comma-separated, optional)[/dim]",
-                default=", ".join(existing.on_readings) if existing and existing.on_readings else "",
+                default=", ".join(existing.get('on_readings', [])) if existing else "",
                 show_default=False
             )
             on_readings = [r.strip() for r in on_readings_str.split(",") if r.strip()]
@@ -354,7 +439,7 @@ def prompt_kanji_data(existing: Optional[Kanji] = None) -> Optional[dict]:
             # Kun-yomi readings (optional, comma-separated)
             kun_readings_str = Prompt.ask(
                 "Kun-yomi readings [dim](comma-separated, optional)[/dim]",
-                default=", ".join(existing.kun_readings) if existing and existing.kun_readings else "",
+                default=", ".join(existing.get('kun_readings', [])) if existing else "",
                 show_default=False
             )
             kun_readings = [r.strip() for r in kun_readings_str.split(",") if r.strip()]
@@ -362,13 +447,13 @@ def prompt_kanji_data(existing: Optional[Kanji] = None) -> Optional[dict]:
             # Vietnamese meaning (required)
             vi_meaning = Prompt.ask(
                 "[bold]Vietnamese meaning[/bold]",
-                default=existing.meanings.get("vi", [""])[0] if existing else None
+                default=existing.get('meanings', {}).get("vi", [""])[0] if existing else None
             )
 
             # English meaning (optional)
             en_meaning = Prompt.ask(
                 "English meaning [dim](optional)[/dim]",
-                default=existing.meanings.get("en", [""])[0] if existing and existing.meanings.get("en") else "",
+                default=existing.get('meanings', {}).get("en", [""])[0] if existing and existing.get('meanings', {}).get("en") else "",
                 show_default=False
             )
 
@@ -384,11 +469,11 @@ def prompt_kanji_data(existing: Optional[Kanji] = None) -> Optional[dict]:
             console.print(f"[dim]Meanings: {meanings}[/dim]\n")
 
         # Determine defaults (from existing, or auto-filled, or none)
-        default_vietnamese_reading = vietnamese_reading or (existing.vietnamese_reading if existing else "")
-        default_jlpt = jlpt_level or (existing.jlpt_level if existing else "")
-        default_stroke_count = stroke_count or (existing.stroke_count if existing and existing.stroke_count else "")
-        default_radical = radical or (existing.radical if existing else "")
-        default_notes = notes or (existing.notes if existing else "")
+        default_vietnamese_reading = vietnamese_reading or (existing.get('vietnamese_reading') if existing else "")
+        default_jlpt = jlpt_level or (existing.get('jlpt_level') if existing else "")
+        default_stroke_count = stroke_count or (existing.get('stroke_count') if existing else "")
+        default_radical = radical or (existing.get('radical') if existing else "")
+        default_notes = notes or (existing.get('notes') if existing else "")
 
         # Vietnamese reading (Hán Việt) (optional)
         vietnamese_reading_input = Prompt.ask(
@@ -408,21 +493,23 @@ def prompt_kanji_data(existing: Optional[Kanji] = None) -> Optional[dict]:
         )
         jlpt_level = jlpt_level_input or None
 
-        # Stroke count (optional)
-        stroke_count_str = Prompt.ask(
-            "Stroke count [dim](optional)[/dim]",
-            default=str(default_stroke_count) if default_stroke_count else "",
-            show_default=bool(default_stroke_count)
-        )
-        stroke_count = int(stroke_count_str) if stroke_count_str else None
+        # Stroke count (optional) - skip prompt if auto-filled from database
+        if not auto_filled:
+            stroke_count_str = Prompt.ask(
+                "Stroke count [dim](optional)[/dim]",
+                default=str(default_stroke_count) if default_stroke_count else "",
+                show_default=bool(default_stroke_count)
+            )
+            stroke_count = int(stroke_count_str) if stroke_count_str else None
 
-        # Radical (optional)
-        radical_input = Prompt.ask(
-            "Radical [dim](optional)[/dim]",
-            default=default_radical,
-            show_default=bool(default_radical)
-        )
-        radical = radical_input or None
+        # Radical (optional) - skip prompt if auto-filled from database
+        if not auto_filled:
+            radical_input = Prompt.ask(
+                "Radical [dim](optional)[/dim]",
+                default=default_radical,
+                show_default=bool(default_radical)
+            )
+            radical = radical_input or None
 
         # Notes (optional)
         notes_input = Prompt.ask(
@@ -448,6 +535,10 @@ def prompt_kanji_data(existing: Optional[Kanji] = None) -> Optional[dict]:
 
             # Validate with Pydantic (create temporary model to check)
             Kanji(**kanji_data)
+
+            # If auto-filled from database, include the existing ID
+            if auto_filled and existing_id is not None:
+                kanji_data['id'] = existing_id
 
             # Return data for database insertion
             return kanji_data
