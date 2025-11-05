@@ -24,9 +24,12 @@ from japanese_cli.ui.prompts import (
 class TestPromptVocabularyData:
     """Tests for prompt_vocabulary_data function."""
 
+    @patch('japanese_cli.ui.prompts.search_vocabulary')
     @patch('japanese_cli.ui.prompts.Prompt.ask')
-    def test_prompt_basic_vocabulary(self, mock_ask):
+    def test_prompt_basic_vocabulary(self, mock_ask, mock_search):
         """Test prompting for basic vocabulary data."""
+        mock_search.return_value = []  # No database matches to avoid selection menu
+
         # Mock user inputs
         mock_ask.side_effect = [
             "単語",  # word
@@ -53,9 +56,12 @@ class TestPromptVocabularyData:
         assert "common" in data["tags"]
         assert data["notes"] == "Basic word"
 
+    @patch('japanese_cli.ui.prompts.search_vocabulary')
     @patch('japanese_cli.ui.prompts.Prompt.ask')
-    def test_prompt_vocabulary_minimal_data(self, mock_ask):
+    def test_prompt_vocabulary_minimal_data(self, mock_ask, mock_search):
         """Test prompting with minimal required data."""
+        mock_search.return_value = []  # No database matches to avoid selection menu
+
         mock_ask.side_effect = [
             "テスト",  # word
             "テスト",  # reading
@@ -78,9 +84,12 @@ class TestPromptVocabularyData:
         assert data["vietnamese_reading"] is None
         assert data["jlpt_level"] is None
 
+    @patch('japanese_cli.ui.prompts.search_vocabulary')
     @patch('japanese_cli.ui.prompts.Prompt.ask')
-    def test_prompt_vocabulary_with_existing(self, mock_ask):
+    def test_prompt_vocabulary_with_existing(self, mock_ask, mock_search):
         """Test prompting with existing vocabulary data pre-filled."""
+        mock_search.return_value = []  # No database matches to avoid selection menu
+
         existing = Vocabulary(
             id=1,
             word="勉強",
@@ -117,9 +126,12 @@ class TestPromptVocabularyData:
 
         assert data is None
 
+    @patch('japanese_cli.ui.prompts.search_vocabulary')
     @patch('japanese_cli.ui.prompts.Prompt.ask')
-    def test_prompt_vocabulary_multiple_tags(self, mock_ask):
+    def test_prompt_vocabulary_multiple_tags(self, mock_ask, mock_search):
         """Test prompting with multiple tags."""
+        mock_search.return_value = []  # No database matches to avoid selection menu
+
         mock_ask.side_effect = [
             "単語",
             "たんご",
@@ -144,9 +156,12 @@ class TestPromptVocabularyData:
 class TestPromptKanjiData:
     """Tests for prompt_kanji_data function."""
 
+    @patch('japanese_cli.ui.prompts.get_kanji_by_character')
     @patch('japanese_cli.ui.prompts.Prompt.ask')
-    def test_prompt_basic_kanji(self, mock_ask):
+    def test_prompt_basic_kanji(self, mock_ask, mock_get_kanji):
         """Test prompting for basic kanji data."""
+        mock_get_kanji.return_value = None  # No existing kanji found
+
         mock_ask.side_effect = [
             "語",  # character
             "ゴ",  # on-yomi
@@ -172,9 +187,12 @@ class TestPromptKanjiData:
         assert data["stroke_count"] == 14
         assert data["radical"] == "言"
 
+    @patch('japanese_cli.ui.prompts.get_kanji_by_character')
     @patch('japanese_cli.ui.prompts.Prompt.ask')
-    def test_prompt_kanji_minimal_data(self, mock_ask):
+    def test_prompt_kanji_minimal_data(self, mock_ask, mock_get_kanji):
         """Test prompting kanji with minimal required data."""
+        mock_get_kanji.return_value = None  # No existing kanji found
+
         mock_ask.side_effect = [
             "日",  # character
             "",  # on-yomi (optional)
@@ -195,9 +213,12 @@ class TestPromptKanjiData:
         assert data["on_readings"] == []
         assert "ひ" in data["kun_readings"]
 
+    @patch('japanese_cli.ui.prompts.get_kanji_by_character')
     @patch('japanese_cli.ui.prompts.Prompt.ask')
-    def test_prompt_kanji_with_existing(self, mock_ask):
+    def test_prompt_kanji_with_existing(self, mock_ask, mock_get_kanji):
         """Test prompting with existing kanji data."""
+        mock_get_kanji.return_value = None  # No existing kanji found
+
         existing = Kanji(
             id=1,
             character="学",
@@ -258,9 +279,12 @@ class TestPromptKanjiData:
 
         assert data is None
 
+    @patch('japanese_cli.ui.prompts.get_kanji_by_character')
     @patch('japanese_cli.ui.prompts.Prompt.ask')
-    def test_prompt_kanji_multiple_readings(self, mock_ask):
+    def test_prompt_kanji_multiple_readings(self, mock_ask, mock_get_kanji):
         """Test kanji with multiple readings."""
+        mock_get_kanji.return_value = None  # No existing kanji found
+
         mock_ask.side_effect = [
             "生",
             "セイ, ショウ",  # Multiple on-yomi
@@ -418,9 +442,12 @@ class TestPromptEdgeCases:
         assert data is not None
         assert data["word"] == "〜です"
 
+    @patch('japanese_cli.ui.prompts.get_kanji_by_character')
     @patch('japanese_cli.ui.prompts.Prompt.ask')
-    def test_kanji_with_whitespace_in_readings(self, mock_ask):
+    def test_kanji_with_whitespace_in_readings(self, mock_ask, mock_get_kanji):
         """Test kanji with whitespace in readings list."""
+        mock_get_kanji.return_value = None  # No existing kanji found
+
         mock_ask.side_effect = [
             "語",
             " ゴ ",  # Whitespace around reading
@@ -441,9 +468,12 @@ class TestPromptEdgeCases:
         assert "ゴ" in data["on_readings"]
         assert "かた.る" in data["kun_readings"]
 
+    @patch('japanese_cli.ui.prompts.search_vocabulary')
     @patch('japanese_cli.ui.prompts.Prompt.ask')
-    def test_vocabulary_with_commas_in_tags(self, mock_ask):
+    def test_vocabulary_with_commas_in_tags(self, mock_ask, mock_search):
         """Test vocabulary with various tag formats."""
+        mock_search.return_value = []  # No database matches to avoid selection menu
+
         mock_ask.side_effect = [
             "テスト",  # Use katakana instead of romaji
             "テスト",
@@ -680,12 +710,14 @@ class TestRomajiLookupVocabulary:
         assert data['part_of_speech'] == 'noun'
         assert mock_int_prompt.called
 
+    @patch('japanese_cli.ui.prompts.search_vocabulary')
     @patch('japanese_cli.ui.prompts.search_vocabulary_by_reading')
     @patch('japanese_cli.ui.prompts.Prompt.ask')
     @patch('japanese_cli.ui.prompts.console.print')
-    def test_romaji_lookup_no_match_then_japanese(self, mock_console, mock_prompt, mock_search):
+    def test_romaji_lookup_no_match_then_japanese(self, mock_console, mock_prompt, mock_search_by_reading, mock_search):
         """Test romaji with no match shows error, then accepts Japanese input."""
-        mock_search.return_value = []  # No matches
+        mock_search_by_reading.return_value = []  # No romaji matches
+        mock_search.return_value = []  # No Japanese matches either
         mock_prompt.side_effect = [
             'tanago',  # Romaji (no match)
             '単語',  # Japanese input (retry)
@@ -699,11 +731,14 @@ class TestRomajiLookupVocabulary:
 
         assert data is not None
         assert data['word'] == '単語'
-        assert mock_search.called
+        assert mock_search_by_reading.called
 
+    @patch('japanese_cli.ui.prompts.search_vocabulary')
     @patch('japanese_cli.ui.prompts.Prompt.ask')
-    def test_direct_japanese_input_no_lookup(self, mock_prompt):
+    def test_direct_japanese_input_no_lookup(self, mock_prompt, mock_search):
         """Test direct Japanese input bypasses romaji lookup."""
+        mock_search.return_value = []  # No database matches to avoid selection menu
+
         mock_prompt.side_effect = [
             '単語',  # Japanese input directly
             'たんご',
@@ -716,10 +751,13 @@ class TestRomajiLookupVocabulary:
         assert data is not None
         assert data['word'] == '単語'
 
+    @patch('japanese_cli.ui.prompts.search_vocabulary')
     @patch('japanese_cli.ui.prompts.Prompt.ask')
     @patch('japanese_cli.ui.prompts.console.print')
-    def test_invalid_input_retry(self, mock_console, mock_prompt):
+    def test_invalid_input_retry(self, mock_console, mock_prompt, mock_search):
         """Test invalid input (neither romaji nor Japanese) prompts retry."""
+        mock_search.return_value = []  # No database matches to avoid selection menu
+
         mock_prompt.side_effect = [
             '123',  # Invalid (numbers)
             '単語',  # Valid Japanese

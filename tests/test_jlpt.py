@@ -68,7 +68,7 @@ def test_init_missing_vocab_file(tmp_path):
         f.write("一\n")
 
     with pytest.raises(FileNotFoundError, match="N5 vocabulary file not found"):
-        JLPTLevelMapper(data_dir=jlpt_dir)
+        JLPTLevelMapper(data_dir=jlpt_dir, auto_download=False)
 
 
 def test_init_missing_kanji_file(tmp_path):
@@ -84,7 +84,7 @@ def test_init_missing_kanji_file(tmp_path):
         writer.writerow(["単語", "たんご"])
 
     with pytest.raises(FileNotFoundError, match="N5 kanji file not found"):
-        JLPTLevelMapper(data_dir=jlpt_dir)
+        JLPTLevelMapper(data_dir=jlpt_dir, auto_download=False)
 
 
 def test_init_malformed_vocab_csv(tmp_path):
