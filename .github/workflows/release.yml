@@ -1,0 +1,135 @@
+name: Build and Release Binaries
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - '.gitignore'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.os }} Binary
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: japanese-cli
+            asset_name: japanese-cli-linux-x64
+          - os: macos-latest
+            artifact_name: japanese-cli
+            asset_name: japanese-cli-macos-universal
+          - os: windows-latest
+            artifact_name: japanese-cli.exe
+            asset_name: japanese-cli-windows-x64.exe
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+
+      - name: Install dependencies
+        run: |
+          uv sync --all-extras
+
+      - name: Build binary with PyInstaller
+        run: |
+          uv run pyinstaller japanese-cli.spec
+
+      - name: Test binary (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          chmod +x dist/japanese-cli
+          ./dist/japanese-cli version
+          ./dist/japanese-cli --help
+
+      - name: Test binary (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          .\dist\japanese-cli.exe version
+          .\dist\japanese-cli.exe --help
+
+      - name: Rename binary for release
+        run: |
+          mv dist/${{ matrix.artifact_name }} ${{ matrix.asset_name }}
+        shell: bash
+
+      - name: Upload binary as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: ${{ matrix.asset_name }}
+          retention-days: 30
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Display structure of downloaded files
+        run: ls -R artifacts
+
+      - name: Generate release tag
+        id: tag
+        run: |
+          echo "tag=build-$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: "Automated Build - $(date +'%Y-%m-%d %H:%M:%S')"
+          body: |
+            ## Japanese Learning CLI - Automated Build
+
+            Built from commit: ${{ github.sha }}
+
+            ### Downloads
+
+            - **Linux (x64)**: `japanese-cli-linux-x64`
+            - **macOS (Universal)**: `japanese-cli-macos-universal`
+            - **Windows (x64)**: `japanese-cli-windows-x64.exe`
+
+            ### Installation
+
+            1. Download the appropriate binary for your platform
+            2. Make it executable (Linux/macOS): `chmod +x japanese-cli-*`
+            3. Move to a directory in your PATH or run directly
+            4. Run `japanese-cli init` to set up the database
+
+            ### Verification
+
+            Run `japanese-cli version` to verify the installation.
+          files: |
+            artifacts/japanese-cli-linux-x64/japanese-cli-linux-x64
+            artifacts/japanese-cli-macos-universal/japanese-cli-macos-universal
+            artifacts/japanese-cli-windows-x64.exe/japanese-cli-windows-x64.exe
+          draft: false
+          prerelease: false
