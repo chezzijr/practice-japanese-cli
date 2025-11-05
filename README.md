@@ -86,11 +86,47 @@ As a Vietnamese learner, this tool provides unique advantages:
 
 ## Installation
 
-### Prerequisites
+### Option 1: Download Standalone Binary (Recommended)
+
+**No Python installation required!** Just download and run.
+
+1. **Download the binary** for your platform from [GitHub Releases](https://github.com/chezzijr/practice-japanese-cli/releases/latest):
+   - **Linux (x64)**: `japanese-cli-linux-x64`
+   - **macOS (Universal)**: `japanese-cli-macos-universal`
+   - **Windows (x64)**: `japanese-cli-windows-x64.exe`
+
+2. **Make executable** (Linux/macOS only):
+   ```bash
+   chmod +x japanese-cli-*
+   ```
+
+3. **Add to PATH** (optional but recommended):
+
+   **Linux/macOS:**
+   ```bash
+   # Move to a directory in your PATH
+   sudo mv japanese-cli-* /usr/local/bin/japanese-cli
+
+   # Or add current directory to PATH
+   export PATH="$PATH:$(pwd)"
+   ```
+
+   **Windows:**
+   - Move the `.exe` to a folder like `C:\Program Files\japanese-cli\`
+   - Add that folder to your System PATH via Environment Variables
+
+4. **Verify installation**:
+   ```bash
+   japanese-cli version
+   ```
+
+### Option 2: Install from Source (Development)
+
+**Prerequisites:**
 - Python 3.10 or higher
 - [uv](https://github.com/astral-sh/uv) package manager
 
-### Install uv
+**Install uv:**
 ```bash
 # macOS/Linux
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -99,10 +135,10 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
-### Install Japanese Learning CLI
+**Install Japanese Learning CLI:**
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/practice-japanese-cli.git
+git clone https://github.com/chezzijr/practice-japanese-cli.git
 cd practice-japanese-cli
 
 # Install dependencies with uv
@@ -114,24 +150,26 @@ uv run japanese-cli --help
 
 ## Quick Start
 
+> **Note:** If you installed from source, prefix all commands with `uv run` (e.g., `uv run japanese-cli init`)
+
 ### 1. Initialize the Application
 ```bash
-uv run japanese-cli init
+japanese-cli init
 ```
 
 ### 2. Import N5 Vocabulary and Kanji
 ```bash
 # Import N5 vocabulary from JMdict
-uv run japanese-cli import n5 --vocab
+japanese-cli import n5 --vocab
 
 # Import N5 kanji from KANJIDIC2
-uv run japanese-cli import n5 --kanji
+japanese-cli import n5 --kanji
 ```
 
 ### 3. Add Your First Flashcard
 ```bash
 # Add a vocabulary word
-uv run japanese-cli flashcard add --type vocab
+japanese-cli flashcard add --type vocab
 
 # Follow the interactive prompts
 ```
@@ -139,13 +177,13 @@ uv run japanese-cli flashcard add --type vocab
 ### 4. Start Your First Review Session
 ```bash
 # Review due cards
-uv run japanese-cli flashcard review
+japanese-cli flashcard review
 
 # Review N5 level cards only
-uv run japanese-cli flashcard review --level n5
+japanese-cli flashcard review --level n5
 
 # Review with a limit
-uv run japanese-cli flashcard review --limit 20
+japanese-cli flashcard review --limit 20
 ```
 
 ### 5. Try MCQ (Multiple Choice) Review
