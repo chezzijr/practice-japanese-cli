@@ -99,13 +99,14 @@ jobs:
         id: tag
         run: |
           echo "tag=build-$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
+          echo "readable_date=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_OUTPUT
 
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
-          name: "Automated Build - $(date +'%Y-%m-%d %H:%M:%S')"
+          name: "Automated Build - ${{ steps.tag.outputs.readable_date }}"
           body: |
             ## Japanese Learning CLI - Automated Build
 
