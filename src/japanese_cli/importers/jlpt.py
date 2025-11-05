@@ -9,6 +9,8 @@ import csv
 from pathlib import Path
 from typing import Dict, Optional, Set, Tuple
 
+from platformdirs import user_data_dir as get_user_data_dir
+
 from .utils import download_jlpt_files
 
 
@@ -59,14 +61,14 @@ class JLPTLevelMapper:
         if data_dir is None:
             # Smart path resolution: check project dir first, then user data dir
             project_data_dir = Path(__file__).parent.parent.parent.parent / "data" / "dict"
-            user_data_dir = Path.home() / ".local" / "share" / "japanese-cli" / "dict"
+            platform_user_data_dir = Path(get_user_data_dir("japanese-cli", appauthor=False)) / "dict"
 
             # Prefer project directory if it exists (development mode)
             if project_data_dir.exists():
                 data_dir = project_data_dir
             else:
-                # Otherwise use user data directory (installed mode)
-                data_dir = user_data_dir
+                # Otherwise use platform-specific user data directory (installed mode)
+                data_dir = platform_user_data_dir
 
         self.data_dir = Path(data_dir)
         self.auto_download = auto_download

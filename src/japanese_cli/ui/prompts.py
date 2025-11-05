@@ -175,19 +175,19 @@ def prompt_vocabulary_data(existing: Optional[Vocabulary] = None) -> Optional[di
             # Reading (required)
             reading = Prompt.ask(
                 "[bold]Reading[/bold] (hiragana/katakana)",
-                default=existing.get('reading') if existing else None
+                default=existing.reading if existing else None
             )
 
             # Vietnamese meaning (required)
             vi_meaning = Prompt.ask(
                 "[bold]Vietnamese meaning[/bold]",
-                default=existing.get('meanings', {}).get("vi", [""])[0] if existing else None
+                default=existing.meanings.get("vi", [""])[0] if existing else None
             )
 
             # English meaning (optional)
             en_meaning = Prompt.ask(
                 "English meaning [dim](optional)[/dim]",
-                default=existing.get('meanings', {}).get("en", [""])[0] if existing and existing.get('meanings', {}).get("en") else "",
+                default=(existing.meanings.get("en", [""])[0] if existing.meanings.get("en") else "") if existing else "",
                 show_default=False
             )
 
@@ -202,11 +202,11 @@ def prompt_vocabulary_data(existing: Optional[Vocabulary] = None) -> Optional[di
             console.print(f"[dim]Meanings: {meanings}[/dim]\n")
 
         # Determine defaults (from existing, or auto-filled, or none)
-        default_vietnamese_reading = vietnamese_reading or (existing.get('vietnamese_reading') if existing else "")
-        default_jlpt = jlpt_level or (existing.get('jlpt_level') if existing else "")
-        default_pos = part_of_speech or (existing.get('part_of_speech') if existing else "")
-        default_tags = tags if tags else (existing.get('tags') if existing else [])
-        default_notes = notes or (existing.get('notes') if existing else "")
+        default_vietnamese_reading = vietnamese_reading or (existing.vietnamese_reading if existing else "")
+        default_jlpt = jlpt_level or (existing.jlpt_level if existing else "")
+        default_pos = part_of_speech or (existing.part_of_speech if existing else "")
+        default_tags = tags if tags else (existing.tags if existing else [])
+        default_notes = notes or (existing.notes if existing else "")
 
         # Vietnamese reading (optional)
         vietnamese_reading_input = Prompt.ask(

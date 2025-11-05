@@ -13,6 +13,7 @@ from typing import Optional
 from urllib.parse import urlparse
 
 import requests
+from platformdirs import user_data_dir
 from rich.console import Console
 from rich.progress import (
     Progress,
@@ -234,19 +235,21 @@ def ensure_data_directory(data_dir: Optional[Path] = None) -> Path:
 
     Example:
         >>> ensure_data_directory()
-        Path('~/.local/share/japanese-cli/dict')  # or project data/dict in dev mode
+        Path('AppData/Local/japanese-cli/dict')  # Windows
+        Path('~/Library/Application Support/japanese-cli/dict')  # macOS
+        Path('~/.local/share/japanese-cli/dict')  # Linux
     """
     if data_dir is None:
         # Smart path resolution: check project dir first, then user data dir
         project_data_dir = Path(__file__).parent.parent.parent.parent / "data" / "dict"
-        user_data_dir = Path.home() / ".local" / "share" / "japanese-cli" / "dict"
+        platform_data_dir = Path(user_data_dir("japanese-cli", appauthor=False)) / "dict"
 
         # Prefer project directory if it exists (development mode)
         if project_data_dir.exists():
             data_dir = project_data_dir
         else:
-            # Otherwise use user data directory (installed mode)
-            data_dir = user_data_dir
+            # Otherwise use platform-specific user data directory (installed mode)
+            data_dir = platform_data_dir
 
     data_dir = Path(data_dir)
     data_dir.mkdir(parents=True, exist_ok=True)
@@ -294,7 +297,7 @@ def download_jlpt_files(
 
     # Determine data directory (always use user data directory for downloads)
     if data_dir is None:
-        data_dir = Path.home() / ".local" / "share" / "japanese-cli" / "dict"
+        data_dir = Path(user_data_dir("japanese-cli", appauthor=False)) / "dict"
 
     data_dir = Path(data_dir)
     data_dir.mkdir(parents=True, exist_ok=True)

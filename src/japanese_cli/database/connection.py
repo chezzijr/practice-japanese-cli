@@ -9,9 +9,11 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Generator
 
+from platformdirs import user_data_dir
 
-# Default database path
-DEFAULT_DB_PATH = Path.home() / ".local" / "share" / "japanese-cli" / "japanese.db"
+
+# Default database path (cross-platform: Windows/macOS/Linux)
+DEFAULT_DB_PATH = Path(user_data_dir("japanese-cli", appauthor=False)) / "japanese.db"
 
 # Project-relative database path (for development)
 PROJECT_DB_PATH = Path(__file__).parent.parent.parent.parent / "data" / "japanese.db"
@@ -43,8 +45,9 @@ def ensure_data_directory() -> None:
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Also create dict subdirectory for downloaded dictionaries
-    dict_path = db_path.parent / "dict"
-    dict_path.mkdir(exist_ok=True)
+    # Use cross-platform data directory
+    dict_path = Path(user_data_dir("japanese-cli", appauthor=False)) / "dict"
+    dict_path.mkdir(parents=True, exist_ok=True)
 
 
 @contextmanager
