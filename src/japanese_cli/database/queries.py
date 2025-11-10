@@ -195,6 +195,7 @@ def search_vocabulary(
 ) -> list[dict[str, Any]]:
     """
     Search vocabulary by word, reading, or meanings.
+    Only returns vocabulary items that are NOT already added as flashcards.
 
     Args:
         search_term: Term to search for
@@ -202,20 +203,22 @@ def search_vocabulary(
         db_path: Database path (optional)
 
     Returns:
-        list[dict]: Matching vocabulary entries
+        list[dict]: Matching vocabulary entries without review entries
     """
     with get_cursor(db_path) as cursor:
         query = """
-            SELECT * FROM vocabulary
-            WHERE word LIKE ? OR reading LIKE ? OR meanings LIKE ?
+            SELECT v.* FROM vocabulary v
+            LEFT JOIN reviews r ON r.item_id = v.id AND r.item_type = 'vocab'
+            WHERE (v.word LIKE ? OR v.reading LIKE ? OR v.meanings LIKE ?)
+            AND r.id IS NULL
         """
         params: list[Any] = [f"%{search_term}%"] * 3
 
         if jlpt_level:
-            query += " AND jlpt_level = ?"
+            query += " AND v.jlpt_level = ?"
             params.append(jlpt_level)
 
-        query += " ORDER BY created_at DESC"
+        query += " ORDER BY v.created_at DESC"
 
         cursor.execute(query, params)
         return [dict(row) for row in cursor.fetchall()]
@@ -228,6 +231,7 @@ def search_vocabulary_by_reading(
 ) -> list[dict[str, Any]]:
     """
     Search vocabulary entries by reading (hiragana/katakana).
+    Only returns vocabulary items that are NOT already added as flashcards.
 
     Args:
         reading: Reading to search for (in hiragana/katakana)
@@ -235,20 +239,30 @@ def search_vocabulary_by_reading(
         db_path: Database path (optional)
 
     Returns:
-        list[dict]: Matching vocabulary entries with all fields
+        list[dict]: Matching vocabulary entries without review entries
 
     Example:
-        >>> # Find all words read as "たんご"
+        >>> # Find all words read as "たんご" (excluding flashcards)
         >>> matches = search_vocabulary_by_reading("たんご")
-        >>> # Find words with reading containing "たん"
+        >>> # Find words with reading containing "たん" (excluding flashcards)
         >>> matches = search_vocabulary_by_reading("たん", exact_match=False)
     """
     with get_cursor(db_path) as cursor:
         if exact_match:
-            query = "SELECT * FROM vocabulary WHERE reading = ? ORDER BY created_at DESC"
+            query = """
+                SELECT v.* FROM vocabulary v
+                LEFT JOIN reviews r ON r.item_id = v.id AND r.item_type = 'vocab'
+                WHERE v.reading = ? AND r.id IS NULL
+                ORDER BY v.created_at DESC
+            """
             params = [reading]
         else:
-            query = "SELECT * FROM vocabulary WHERE reading LIKE ? ORDER BY created_at DESC"
+            query = """
+                SELECT v.* FROM vocabulary v
+                LEFT JOIN reviews r ON r.item_id = v.id AND r.item_type = 'vocab'
+                WHERE v.reading LIKE ? AND r.id IS NULL
+                ORDER BY v.created_at DESC
+            """
             params = [f"%{reading}%"]
 
         cursor.execute(query, params)
@@ -520,6 +534,7 @@ def search_kanji_by_reading(
 ) -> list[dict[str, Any]]:
     """
     Search kanji entries by reading (on-yomi or kun-yomi).
+    Only returns kanji items that are NOT already added as flashcards.
 
     Args:
         reading: Reading to search for (in hiragana/katakana)
@@ -527,28 +542,39 @@ def search_kanji_by_reading(
         db_path: Database path (optional)
 
     Returns:
-        list[dict]: Matching kanji entries with all fields
+        list[dict]: Matching kanji entries without review entries
 
     Example:
-        >>> # Find kanji with on-yomi reading "ゴ"
+        >>> # Find kanji with on-yomi reading "ゴ" (excluding flashcards)
         >>> matches = search_kanji_by_reading("ゴ", reading_type="on")
-        >>> # Find kanji with kun-yomi reading "かた.る"
+        >>> # Find kanji with kun-yomi reading "かた.る" (excluding flashcards)
         >>> matches = search_kanji_by_reading("かた.る", reading_type="kun")
-        >>> # Find kanji with either on or kun reading containing "がく"
+        >>> # Find kanji with either on or kun reading containing "がく" (excluding flashcards)
         >>> matches = search_kanji_by_reading("がく", reading_type="both")
     """
     with get_cursor(db_path) as cursor:
         if reading_type == "on":
-            query = "SELECT * FROM kanji WHERE on_readings LIKE ? ORDER BY created_at DESC"
+            query = """
+                SELECT k.* FROM kanji k
+                LEFT JOIN reviews r ON r.item_id = k.id AND r.item_type = 'kanji'
+                WHERE k.on_readings LIKE ? AND r.id IS NULL
+                ORDER BY k.created_at DESC
+            """
             params = [f"%{reading}%"]
         elif reading_type == "kun":
-            query = "SELECT * FROM kanji WHERE kun_readings LIKE ? ORDER BY created_at DESC"
+            query = """
+                SELECT k.* FROM kanji k
+                LEFT JOIN reviews r ON r.item_id = k.id AND r.item_type = 'kanji'
+                WHERE k.kun_readings LIKE ? AND r.id IS NULL
+                ORDER BY k.created_at DESC
+            """
             params = [f"%{reading}%"]
         else:  # both
             query = """
-                SELECT * FROM kanji
-                WHERE on_readings LIKE ? OR kun_readings LIKE ?
-                ORDER BY created_at DESC
+                SELECT k.* FROM kanji k
+                LEFT JOIN reviews r ON r.item_id = k.id AND r.item_type = 'kanji'
+                WHERE (k.on_readings LIKE ? OR k.kun_readings LIKE ?) AND r.id IS NULL
+                ORDER BY k.created_at DESC
             """
             params = [f"%{reading}%", f"%{reading}%"]
 

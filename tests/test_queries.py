@@ -211,6 +211,98 @@ def test_search_vocabulary_not_found(clean_db):
     assert len(results) == 0
 
 
+def test_search_vocabulary_excludes_flashcards(db_with_vocabulary):
+    """Test that search_vocabulary excludes items with review entries."""
+    from fsrs import Card
+
+    db_path, vocab_id = db_with_vocabulary
+
+    # Initially, search should return the vocabulary
+    results = search_vocabulary("単語", db_path=db_path)
+    assert len(results) == 1
+    assert results[0]["id"] == vocab_id
+
+    # Create a review entry (making it a flashcard)
+    card = Card()
+    create_review(
+        item_id=vocab_id,
+        item_type="vocab",
+        fsrs_card_state=card.to_dict(),
+        due_date=card.due,
+        db_path=db_path
+    )
+
+    # Now search should return nothing (vocabulary is now a flashcard)
+    results = search_vocabulary("単語", db_path=db_path)
+    assert len(results) == 0
+
+
+def test_search_vocabulary_by_reading_excludes_flashcards(db_with_vocabulary):
+    """Test that search_vocabulary_by_reading excludes items with review entries."""
+    from japanese_cli.database import search_vocabulary_by_reading
+    from fsrs import Card
+
+    db_path, vocab_id = db_with_vocabulary
+
+    # Initially, exact match search should return the vocabulary
+    results = search_vocabulary_by_reading("たんご", exact_match=True, db_path=db_path)
+    assert len(results) == 1
+    assert results[0]["id"] == vocab_id
+
+    # Create a review entry (making it a flashcard)
+    card = Card()
+    create_review(
+        item_id=vocab_id,
+        item_type="vocab",
+        fsrs_card_state=card.to_dict(),
+        due_date=card.due,
+        db_path=db_path
+    )
+
+    # Now search should return nothing (vocabulary is now a flashcard)
+    results = search_vocabulary_by_reading("たんご", exact_match=True, db_path=db_path)
+    assert len(results) == 0
+
+
+def test_search_vocabulary_by_reading_partial_excludes_flashcards(clean_db):
+    """Test that partial reading search excludes flashcards."""
+    from japanese_cli.database import search_vocabulary_by_reading
+    from fsrs import Card
+
+    # Add two vocabulary items with similar readings
+    vocab1_id = add_vocabulary(
+        word="単語",
+        reading="たんご",
+        meanings={"en": ["word"]},
+        db_path=clean_db
+    )
+    vocab2_id = add_vocabulary(
+        word="短期",
+        reading="たんき",
+        meanings={"en": ["short-term"]},
+        db_path=clean_db
+    )
+
+    # Partial search should return both
+    results = search_vocabulary_by_reading("たん", exact_match=False, db_path=clean_db)
+    assert len(results) == 2
+
+    # Add vocab1 as flashcard
+    card = Card()
+    create_review(
+        item_id=vocab1_id,
+        item_type="vocab",
+        fsrs_card_state=card.to_dict(),
+        due_date=card.due,
+        db_path=clean_db
+    )
+
+    # Now partial search should only return vocab2
+    results = search_vocabulary_by_reading("たん", exact_match=False, db_path=clean_db)
+    assert len(results) == 1
+    assert results[0]["id"] == vocab2_id
+
+
 def test_update_vocabulary_success(db_with_vocabulary):
     """Test updating vocabulary fields."""
     db_path, vocab_id = db_with_vocabulary
@@ -375,6 +467,108 @@ def test_search_kanji(db_with_kanji):
     # Search by character
     results = search_kanji("語", db_path=db_path)
     assert len(results) >= 1
+
+
+def test_search_kanji_by_reading_excludes_flashcards(db_with_kanji):
+    """Test that search_kanji_by_reading excludes items with review entries."""
+    from japanese_cli.database import search_kanji_by_reading
+    from fsrs import Card
+
+    db_path, kanji_id = db_with_kanji
+
+    # Initially, search should return the kanji (on-yomi)
+    results = search_kanji_by_reading("ゴ", reading_type="on", db_path=db_path)
+    assert len(results) == 1
+    assert results[0]["id"] == kanji_id
+
+    # Create a review entry (making it a flashcard)
+    card = Card()
+    create_review(
+        item_id=kanji_id,
+        item_type="kanji",
+        fsrs_card_state=card.to_dict(),
+        due_date=card.due,
+        db_path=db_path
+    )
+
+    # Now search should return nothing (kanji is now a flashcard)
+    results = search_kanji_by_reading("ゴ", reading_type="on", db_path=db_path)
+    assert len(results) == 0
+
+
+def test_search_kanji_by_kun_reading_excludes_flashcards(clean_db):
+    """Test that kun-yomi search excludes flashcards."""
+    from japanese_cli.database import search_kanji_by_reading
+    from fsrs import Card
+
+    # Add kanji
+    kanji_id = add_kanji(
+        character="語",
+        on_readings=["ゴ"],
+        kun_readings=["かた.る", "かた.らう"],
+        meanings={"en": ["word", "language"]},
+        db_path=clean_db
+    )
+
+    # Initially, kun-yomi search should return the kanji
+    results = search_kanji_by_reading("かた.る", reading_type="kun", db_path=clean_db)
+    assert len(results) == 1
+    assert results[0]["id"] == kanji_id
+
+    # Create a review entry (making it a flashcard)
+    card = Card()
+    create_review(
+        item_id=kanji_id,
+        item_type="kanji",
+        fsrs_card_state=card.to_dict(),
+        due_date=card.due,
+        db_path=clean_db
+    )
+
+    # Now kun-yomi search should return nothing
+    results = search_kanji_by_reading("かた.る", reading_type="kun", db_path=clean_db)
+    assert len(results) == 0
+
+
+def test_search_kanji_by_both_readings_excludes_flashcards(clean_db):
+    """Test that 'both' reading type search excludes flashcards."""
+    from japanese_cli.database import search_kanji_by_reading
+    from fsrs import Card
+
+    # Add two kanji
+    kanji1_id = add_kanji(
+        character="語",
+        on_readings=["ゴ"],
+        kun_readings=["かた.る"],
+        meanings={"en": ["word"]},
+        db_path=clean_db
+    )
+    kanji2_id = add_kanji(
+        character="話",
+        on_readings=["ワ"],
+        kun_readings=["はな.す"],
+        meanings={"en": ["talk"]},
+        db_path=clean_db
+    )
+
+    # Both should be found with 'both' reading type search
+    results = search_kanji_by_reading("ゴ", reading_type="both", db_path=clean_db)
+    assert len(results) == 1
+    assert results[0]["id"] == kanji1_id
+
+    # Add kanji1 as flashcard
+    card = Card()
+    create_review(
+        item_id=kanji1_id,
+        item_type="kanji",
+        fsrs_card_state=card.to_dict(),
+        due_date=card.due,
+        db_path=clean_db
+    )
+
+    # Now search should return nothing
+    results = search_kanji_by_reading("ゴ", reading_type="both", db_path=clean_db)
+    assert len(results) == 0
 
 
 def test_update_kanji_success(db_with_kanji):
