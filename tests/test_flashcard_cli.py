@@ -20,36 +20,36 @@ runner = CliRunner()
 class TestFlashcardListCommand:
     """Tests for flashcard list command."""
 
-    def test_list_vocabulary_basic(self, cli_db_with_vocabulary):
-        """Test listing vocabulary flashcards."""
+    def test_list_vocabulary_basic(self, cli_db_with_vocabulary_flashcard):
+        """Test listing vocabulary flashcards (with review entries)."""
         result = runner.invoke(app, ["list", "--type", "vocab", "--limit", "5"])
 
-        # Command should complete (may be 0 or 1 depending on database state)
-        assert result.exit_code in [0, 1]
+        # Command should complete successfully
+        assert result.exit_code == 0
 
-    def test_list_kanji_basic(self, cli_db_with_kanji):
-        """Test listing kanji flashcards."""
+    def test_list_kanji_basic(self, cli_db_with_kanji_flashcard):
+        """Test listing kanji flashcards (with review entries)."""
         result = runner.invoke(app, ["list", "--type", "kanji", "--limit", "5"])
 
         assert result.exit_code == 0
         assert "Kanji" in result.stdout or "㊙️" in result.stdout
 
-    def test_list_with_jlpt_filter(self, cli_db_with_vocabulary):
-        """Test listing with JLPT level filter."""
+    def test_list_with_jlpt_filter(self, cli_db_with_vocabulary_flashcard):
+        """Test listing with JLPT level filter (flashcards only)."""
         result = runner.invoke(app, ["list", "--type", "vocab", "--level", "n5"])
 
-        # Command should complete (may be 0 or 1 depending on database state)
-        assert result.exit_code in [0, 1]
+        # Command should complete successfully
+        assert result.exit_code == 0
 
-    def test_list_with_limit(self, cli_db_with_vocabulary):
-        """Test listing with custom limit."""
+    def test_list_with_limit(self, cli_db_with_vocabulary_flashcard):
+        """Test listing with custom limit (flashcards only)."""
         result = runner.invoke(app, ["list", "--type", "vocab", "--limit", "10"])
 
         # Command should complete
-        assert result.exit_code in [0, 1]
+        assert result.exit_code == 0
 
-    def test_list_with_offset(self, cli_db_with_vocabulary):
-        """Test listing with offset for pagination."""
+    def test_list_with_offset(self, cli_db_with_vocabulary_flashcard):
+        """Test listing with offset for pagination (flashcards only)."""
         result = runner.invoke(app, ["list", "--type", "vocab", "--limit", "5", "--offset", "5"])
 
         # Command should complete
@@ -81,20 +81,40 @@ class TestFlashcardListCommand:
 class TestFlashcardShowCommand:
     """Tests for flashcard show command."""
 
-    def test_show_vocabulary(self, cli_db_with_vocabulary):
-        """Test showing vocabulary details."""
-        # Get first vocabulary ID from fixture
-        result = runner.invoke(app, ["show", "1", "--type", "vocab"])
+    def test_show_vocabulary(self, cli_db_with_vocabulary_flashcard):
+        """Test showing vocabulary flashcard details (with review entry)."""
+        # Get vocabulary ID from fixture
+        _, vocab_id, _ = cli_db_with_vocabulary_flashcard
+        result = runner.invoke(app, ["show", str(vocab_id), "--type", "vocab"])
 
-        # May or may not exist depending on fixture, but should not crash
-        assert result.exit_code in [0, 1]
+        # Should succeed since it has a review entry
+        assert result.exit_code == 0
 
-    def test_show_kanji(self, cli_db_with_kanji):
-        """Test showing kanji details."""
-        result = runner.invoke(app, ["show", "1", "--type", "kanji"])
+    def test_show_kanji(self, cli_db_with_kanji_flashcard):
+        """Test showing kanji flashcard details (with review entry)."""
+        _, kanji_id, _ = cli_db_with_kanji_flashcard
+        result = runner.invoke(app, ["show", str(kanji_id), "--type", "kanji"])
 
-        # May or may not exist depending on fixture
-        assert result.exit_code in [0, 1]
+        # Should succeed since it has a review entry
+        assert result.exit_code == 0
+
+    def test_show_vocabulary_without_review_entry(self, cli_db_with_vocabulary):
+        """Test showing vocabulary that exists but is not a flashcard."""
+        _, vocab_id = cli_db_with_vocabulary
+        result = runner.invoke(app, ["show", str(vocab_id), "--type", "vocab"])
+
+        # Should fail with warning about not being a flashcard
+        assert result.exit_code == 1
+        assert "not added as a" in result.stdout and "flashcard" in result.stdout
+
+    def test_show_kanji_without_review_entry(self, cli_db_with_kanji):
+        """Test showing kanji that exists but is not a flashcard."""
+        _, kanji_id = cli_db_with_kanji
+        result = runner.invoke(app, ["show", str(kanji_id), "--type", "kanji"])
+
+        # Should fail with warning about not being a flashcard
+        assert result.exit_code == 1
+        assert "not added as a" in result.stdout and "flashcard" in result.stdout
 
     def test_show_nonexistent_vocabulary(self, cli_clean_db):
         """Test showing non-existent vocabulary."""

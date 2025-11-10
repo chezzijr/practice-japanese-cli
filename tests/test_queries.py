@@ -22,6 +22,7 @@ from japanese_cli.database import (
     get_progress,
     get_review,
     get_vocabulary_by_id,
+    has_review_entry,
     increment_streak,
     init_progress,
     list_grammar,
@@ -76,9 +77,9 @@ def test_get_vocabulary_by_id_not_found(clean_db):
     assert vocab is None
 
 
-def test_list_vocabulary_all(db_with_vocabulary):
-    """Test listing all vocabulary."""
-    db_path, vocab_id = db_with_vocabulary
+def test_list_vocabulary_all(db_with_review):
+    """Test listing all vocabulary that have review entries (flashcards only)."""
+    db_path, vocab_id, review_id = db_with_review
 
     vocab_list = list_vocabulary(db_path=db_path)
 
@@ -87,20 +88,39 @@ def test_list_vocabulary_all(db_with_vocabulary):
 
 
 def test_list_vocabulary_with_jlpt_filter(clean_db):
-    """Test listing vocabulary filtered by JLPT level."""
+    """Test listing vocabulary filtered by JLPT level (flashcards only)."""
+    from fsrs import Card
+
     # Add N5 and N4 vocabulary
-    add_vocabulary(
+    vocab_id_1 = add_vocabulary(
         word="test1",
         reading="てすと1",
         meanings={"en": ["test1"]},
         jlpt_level="n5",
         db_path=clean_db
     )
-    add_vocabulary(
+    vocab_id_2 = add_vocabulary(
         word="test2",
         reading="てすと2",
         meanings={"en": ["test2"]},
         jlpt_level="n4",
+        db_path=clean_db
+    )
+
+    # Create review entries for both
+    card = Card()
+    create_review(
+        item_id=vocab_id_1,
+        item_type="vocab",
+        fsrs_card_state=card.to_dict(),
+        due_date=card.due,
+        db_path=clean_db
+    )
+    create_review(
+        item_id=vocab_id_2,
+        item_type="vocab",
+        fsrs_card_state=card.to_dict(),
+        due_date=card.due,
         db_path=clean_db
     )
 
@@ -109,21 +129,67 @@ def test_list_vocabulary_with_jlpt_filter(clean_db):
     assert n5_vocab[0]["word"] == "test1"
 
 
-def test_list_vocabulary_with_limit(db_with_vocabulary):
-    """Test listing vocabulary with limit."""
-    db_path, _ = db_with_vocabulary
+def test_list_vocabulary_with_limit(db_with_review):
+    """Test listing vocabulary with limit (flashcards only)."""
+    from fsrs import Card
 
-    # Add more vocabulary
+    db_path, _, _ = db_with_review
+
+    # Add more vocabulary with review entries
     for i in range(5):
-        add_vocabulary(
+        vocab_id = add_vocabulary(
             word=f"word{i}",
             reading=f"reading{i}",
             meanings={"en": [f"meaning{i}"]},
             db_path=db_path
         )
+        # Create review entry
+        card = Card()
+        create_review(
+            item_id=vocab_id,
+            item_type="vocab",
+            fsrs_card_state=card.to_dict(),
+            due_date=card.due,
+            db_path=db_path
+        )
 
     vocab_list = list_vocabulary(limit=3, db_path=db_path)
     assert len(vocab_list) == 3
+
+
+def test_list_vocabulary_only_shows_flashcards(clean_db):
+    """Test that list_vocabulary only shows items with review entries."""
+    from fsrs import Card
+
+    # Add vocabulary WITHOUT review entry
+    vocab_id_no_review = add_vocabulary(
+        word="no_review",
+        reading="のーれびゅー",
+        meanings={"en": ["no review"]},
+        db_path=clean_db
+    )
+
+    # Add vocabulary WITH review entry
+    vocab_id_with_review = add_vocabulary(
+        word="with_review",
+        reading="うぃずれびゅー",
+        meanings={"en": ["with review"]},
+        db_path=clean_db
+    )
+    card = Card()
+    create_review(
+        item_id=vocab_id_with_review,
+        item_type="vocab",
+        fsrs_card_state=card.to_dict(),
+        due_date=card.due,
+        db_path=clean_db
+    )
+
+    # List should only return the one with review entry
+    vocab_list = list_vocabulary(db_path=clean_db)
+    assert len(vocab_list) == 1
+    assert vocab_list[0]["id"] == vocab_id_with_review
+    assert vocab_list[0]["word"] == "with_review"
 
 
 def test_search_vocabulary(db_with_vocabulary):
@@ -223,8 +289,10 @@ def test_get_kanji_by_id_not_found(clean_db):
 
 
 def test_list_kanji_with_jlpt_filter(clean_db):
-    """Test listing kanji filtered by JLPT level."""
-    add_kanji(
+    """Test listing kanji filtered by JLPT level (flashcards only)."""
+    from fsrs import Card
+
+    kanji_id_1 = add_kanji(
         character="語",
         on_readings=["ゴ"],
         kun_readings=[],
@@ -232,7 +300,7 @@ def test_list_kanji_with_jlpt_filter(clean_db):
         jlpt_level="n5",
         db_path=clean_db
     )
-    add_kanji(
+    kanji_id_2 = add_kanji(
         character="読",
         on_readings=["ドク"],
         kun_readings=["よ.む"],
@@ -241,9 +309,63 @@ def test_list_kanji_with_jlpt_filter(clean_db):
         db_path=clean_db
     )
 
+    # Create review entries for both
+    card = Card()
+    create_review(
+        item_id=kanji_id_1,
+        item_type="kanji",
+        fsrs_card_state=card.to_dict(),
+        due_date=card.due,
+        db_path=clean_db
+    )
+    create_review(
+        item_id=kanji_id_2,
+        item_type="kanji",
+        fsrs_card_state=card.to_dict(),
+        due_date=card.due,
+        db_path=clean_db
+    )
+
     n5_kanji = list_kanji(jlpt_level="n5", db_path=clean_db)
     assert len(n5_kanji) == 1
     assert n5_kanji[0]["character"] == "語"
+
+
+def test_list_kanji_only_shows_flashcards(clean_db):
+    """Test that list_kanji only shows items with review entries."""
+    from fsrs import Card
+
+    # Add kanji WITHOUT review entry
+    kanji_id_no_review = add_kanji(
+        character="無",
+        on_readings=["ム"],
+        kun_readings=["な.い"],
+        meanings={"en": ["nothing"]},
+        db_path=clean_db
+    )
+
+    # Add kanji WITH review entry
+    kanji_id_with_review = add_kanji(
+        character="有",
+        on_readings=["ユウ", "ウ"],
+        kun_readings=["あ.る"],
+        meanings={"en": ["exist"]},
+        db_path=clean_db
+    )
+    card = Card()
+    create_review(
+        item_id=kanji_id_with_review,
+        item_type="kanji",
+        fsrs_card_state=card.to_dict(),
+        due_date=card.due,
+        db_path=clean_db
+    )
+
+    # List should only return the one with review entry
+    kanji_list = list_kanji(db_path=clean_db)
+    assert len(kanji_list) == 1
+    assert kanji_list[0]["id"] == kanji_id_with_review
+    assert kanji_list[0]["character"] == "有"
 
 
 def test_search_kanji(db_with_kanji):
@@ -398,6 +520,27 @@ def test_get_review_not_found(clean_db):
     """Test that getting non-existent review returns None."""
     review = get_review(9999, "vocab", db_path=clean_db)
     assert review is None
+
+
+def test_has_review_entry(db_with_review, clean_db):
+    """Test checking if an item has a review entry."""
+    db_path, vocab_id, review_id = db_with_review
+
+    # Item with review entry should return True
+    assert has_review_entry(vocab_id, "vocab", db_path=db_path) is True
+
+    # Item without review entry should return False
+    assert has_review_entry(9999, "vocab", db_path=db_path) is False
+
+    # Add a kanji without review
+    kanji_id = add_kanji(
+        character="語",
+        on_readings=["ゴ"],
+        kun_readings=[],
+        meanings={"en": ["language"]},
+        db_path=db_path
+    )
+    assert has_review_entry(kanji_id, "kanji", db_path=db_path) is False
 
 
 def test_update_review_increments_count(db_with_review):

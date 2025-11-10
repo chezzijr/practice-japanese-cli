@@ -116,7 +116,7 @@ def list_vocabulary(
     db_path: Path | None = None
 ) -> list[dict[str, Any]]:
     """
-    List vocabulary entries with optional filtering.
+    List vocabulary entries that have been added to the review system (flashcards only).
 
     Args:
         jlpt_level: Filter by JLPT level (optional)
@@ -125,7 +125,50 @@ def list_vocabulary(
         db_path: Database path (optional)
 
     Returns:
-        list[dict]: List of vocabulary entries
+        list[dict]: List of vocabulary entries that are flashcards
+    """
+    with get_cursor(db_path) as cursor:
+        query = """
+            SELECT v.*
+            FROM vocabulary v
+            INNER JOIN reviews r ON r.item_id = v.id AND r.item_type = 'vocab'
+        """
+        params: list[Any] = []
+
+        if jlpt_level:
+            query += " WHERE v.jlpt_level = ?"
+            params.append(jlpt_level)
+
+        query += " ORDER BY v.created_at DESC"
+
+        if limit:
+            query += " LIMIT ? OFFSET ?"
+            params.extend([limit, offset])
+
+        cursor.execute(query, params)
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def list_all_vocabulary(
+    jlpt_level: Optional[str] = None,
+    limit: Optional[int] = None,
+    offset: int = 0,
+    db_path: Path | None = None
+) -> list[dict[str, Any]]:
+    """
+    List ALL vocabulary entries from database (including those without review entries).
+
+    This is different from list_vocabulary which only shows flashcards.
+    Use this for operations that need access to all database entries (e.g., MCQ auto-creation).
+
+    Args:
+        jlpt_level: Filter by JLPT level (optional)
+        limit: Maximum number of results (optional)
+        offset: Number of results to skip (default: 0)
+        db_path: Database path (optional)
+
+    Returns:
+        list[dict]: List of ALL vocabulary entries
     """
     with get_cursor(db_path) as cursor:
         query = "SELECT * FROM vocabulary"
@@ -364,7 +407,7 @@ def list_kanji(
     db_path: Path | None = None
 ) -> list[dict[str, Any]]:
     """
-    List kanji entries with optional filtering.
+    List kanji entries that have been added to the review system (flashcards only).
 
     Args:
         jlpt_level: Filter by JLPT level (optional)
@@ -373,7 +416,50 @@ def list_kanji(
         db_path: Database path (optional)
 
     Returns:
-        list[dict]: List of kanji entries
+        list[dict]: List of kanji entries that are flashcards
+    """
+    with get_cursor(db_path) as cursor:
+        query = """
+            SELECT k.*
+            FROM kanji k
+            INNER JOIN reviews r ON r.item_id = k.id AND r.item_type = 'kanji'
+        """
+        params: list[Any] = []
+
+        if jlpt_level:
+            query += " WHERE k.jlpt_level = ?"
+            params.append(jlpt_level)
+
+        query += " ORDER BY k.created_at DESC"
+
+        if limit:
+            query += " LIMIT ? OFFSET ?"
+            params.extend([limit, offset])
+
+        cursor.execute(query, params)
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def list_all_kanji(
+    jlpt_level: Optional[str] = None,
+    limit: Optional[int] = None,
+    offset: int = 0,
+    db_path: Path | None = None
+) -> list[dict[str, Any]]:
+    """
+    List ALL kanji entries from database (including those without review entries).
+
+    This is different from list_kanji which only shows flashcards.
+    Use this for operations that need access to all database entries (e.g., MCQ auto-creation).
+
+    Args:
+        jlpt_level: Filter by JLPT level (optional)
+        limit: Maximum number of results (optional)
+        offset: Number of results to skip (default: 0)
+        db_path: Database path (optional)
+
+    Returns:
+        list[dict]: List of ALL kanji entries
     """
     with get_cursor(db_path) as cursor:
         query = "SELECT * FROM kanji"
@@ -680,6 +766,26 @@ def delete_grammar(grammar_id: int, db_path: Path | None = None) -> bool:
 # ============================================================================
 # Review Queries
 # ============================================================================
+
+def has_review_entry(item_id: int, item_type: str, db_path: Path | None = None) -> bool:
+    """
+    Check if an item has a review entry (i.e., is a flashcard).
+
+    Args:
+        item_id: ID of vocabulary or kanji item
+        item_type: 'vocab' or 'kanji'
+        db_path: Database path (optional)
+
+    Returns:
+        bool: True if item has a review entry, False otherwise
+    """
+    with get_cursor(db_path) as cursor:
+        cursor.execute(
+            "SELECT 1 FROM reviews WHERE item_id = ? AND item_type = ? LIMIT 1",
+            (item_id, item_type)
+        )
+        return cursor.fetchone() is not None
+
 
 def create_review(
     item_id: int,

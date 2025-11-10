@@ -299,3 +299,59 @@ def cli_db_with_grammar(mock_db_path, sample_grammar):
     """
     grammar_id = add_grammar(**sample_grammar, db_path=mock_db_path)
     return mock_db_path, grammar_id
+
+
+@pytest.fixture
+def cli_db_with_vocabulary_flashcard(mock_db_path, sample_vocabulary):
+    """
+    Database with vocabulary AND review entry for CLI flashcard tests.
+
+    Args:
+        mock_db_path: Monkeypatched database path
+        sample_vocabulary: Sample vocabulary data
+
+    Returns:
+        tuple: (db_path, vocabulary_id, review_id)
+    """
+    from fsrs import Card
+
+    vocab_id = add_vocabulary(**sample_vocabulary, db_path=mock_db_path)
+
+    card = Card()
+    review_id = create_review(
+        item_id=vocab_id,
+        item_type="vocab",
+        fsrs_card_state=card.to_dict(),
+        due_date=card.due,
+        db_path=mock_db_path
+    )
+
+    return mock_db_path, vocab_id, review_id
+
+
+@pytest.fixture
+def cli_db_with_kanji_flashcard(mock_db_path, sample_kanji):
+    """
+    Database with kanji AND review entry for CLI flashcard tests.
+
+    Args:
+        mock_db_path: Monkeypatched database path
+        sample_kanji: Sample kanji data
+
+    Returns:
+        tuple: (db_path, kanji_id, review_id)
+    """
+    from fsrs import Card
+
+    kanji_id = add_kanji(**sample_kanji, db_path=mock_db_path)
+
+    card = Card()
+    review_id = create_review(
+        item_id=kanji_id,
+        item_type="kanji",
+        fsrs_card_state=card.to_dict(),
+        due_date=card.due,
+        db_path=mock_db_path
+    )
+
+    return mock_db_path, kanji_id, review_id

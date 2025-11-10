@@ -15,8 +15,8 @@ from rich.console import Console
 from ..database import (
     get_vocabulary_by_id,
     get_kanji_by_id,
-    list_vocabulary,
-    list_kanji,
+    list_all_vocabulary,
+    list_all_kanji,
 )
 from ..models import Vocabulary, Kanji, ItemType
 from ..srs import MCQReviewScheduler
@@ -133,12 +133,12 @@ def _auto_create_mcq_reviews(
         types_to_process = [item_type]
 
     for current_type in types_to_process:
-        # Get all items of this type
+        # Get ALL items of this type (not just flashcards)
         if current_type == "vocab":
-            items = list_vocabulary(jlpt_level=jlpt_level, limit=None, offset=0, db_path=db_path)
+            items = list_all_vocabulary(jlpt_level=jlpt_level, limit=None, offset=0, db_path=db_path)
             item_type_enum = ItemType.VOCAB
         else:  # kanji
-            items = list_kanji(jlpt_level=jlpt_level, limit=None, offset=0, db_path=db_path)
+            items = list_all_kanji(jlpt_level=jlpt_level, limit=None, offset=0, db_path=db_path)
             item_type_enum = ItemType.KANJI
 
         # For each item, check if MCQ review exists

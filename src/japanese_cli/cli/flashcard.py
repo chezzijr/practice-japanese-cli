@@ -22,6 +22,7 @@ from ..database import (
     update_vocabulary,
     update_kanji,
     get_review,
+    has_review_entry,
 )
 from ..models import Vocabulary, Kanji, ItemType
 from ..srs import ReviewScheduler
@@ -326,6 +327,12 @@ def _show_vocabulary(vocab_id: int):
         console.print(f"[red]Error: Vocabulary with ID {vocab_id} not found.[/red]")
         raise typer.Exit(code=1)
 
+    # Check if item has a review entry (is a flashcard)
+    if not has_review_entry(vocab_id, "vocab"):
+        console.print(f"[yellow]Warning: Vocabulary with ID {vocab_id} exists in database but is not added as a flashcard.[/yellow]")
+        console.print("[dim]Use 'flashcard add --type vocab' to add it to the review queue.[/dim]")
+        raise typer.Exit(code=1)
+
     # Convert to Vocabulary object
     vocab = Vocabulary.from_db_row(vocab_dict)
 
@@ -346,6 +353,12 @@ def _show_kanji(kanji_id: int):
 
     if kanji_dict is None:
         console.print(f"[red]Error: Kanji with ID {kanji_id} not found.[/red]")
+        raise typer.Exit(code=1)
+
+    # Check if item has a review entry (is a flashcard)
+    if not has_review_entry(kanji_id, "kanji"):
+        console.print(f"[yellow]Warning: Kanji with ID {kanji_id} exists in database but is not added as a flashcard.[/yellow]")
+        console.print("[dim]Use 'flashcard add --type kanji' to add it to the review queue.[/dim]")
         raise typer.Exit(code=1)
 
     # Convert to Kanji object

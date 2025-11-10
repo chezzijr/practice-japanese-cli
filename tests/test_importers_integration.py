@@ -7,7 +7,7 @@ Tests the JMdict and KANJIDIC2 importers with sample XML files.
 import pytest
 from pathlib import Path
 from japanese_cli.importers import JMdictImporter, KanjidicImporter, JLPTLevelMapper
-from japanese_cli.database.queries import list_vocabulary, list_kanji
+from japanese_cli.database.queries import list_all_vocabulary, list_all_kanji
 
 
 @pytest.fixture
@@ -44,7 +44,7 @@ def test_jmdict_importer_with_sample_xml(clean_db, sample_xml_dir, jlpt_data_dir
     assert stats.filtered >= 1, "Should filter at least 1 non-N5 word"
 
     # Verify data was inserted into database
-    vocab_list = list_vocabulary(db_path=clean_db)
+    vocab_list = list_all_vocabulary(db_path=clean_db)
     assert len(vocab_list) >= 1, "Should have vocabulary in database"
 
 
@@ -70,7 +70,7 @@ def test_kanjidic_importer_with_sample_xml(clean_db, sample_xml_dir, jlpt_data_d
     assert stats.filtered >= 1, "Should filter at least 1 non-N5 kanji"
 
     # Verify data was inserted into database
-    kanji_list = list_kanji(db_path=clean_db)
+    kanji_list = list_all_kanji(db_path=clean_db)
     assert len(kanji_list) >= 1, "Should have kanji in database"
 
 
@@ -189,7 +189,7 @@ def test_jmdict_import_vocabulary_all_levels(clean_db, sample_xml_dir, jlpt_data
     assert stats.imported + stats.filtered + stats.skipped > 0
 
     # Verify any imported vocab has correct JLPT level
-    vocab_list = list_vocabulary(jlpt_level=level, db_path=clean_db)
+    vocab_list = list_all_vocabulary(jlpt_level=level, db_path=clean_db)
     for vocab in vocab_list:
         assert vocab['jlpt_level'] == level
 
@@ -214,7 +214,7 @@ def test_kanjidic_import_kanji_all_levels(clean_db, sample_xml_dir, jlpt_data_di
     assert stats.imported + stats.filtered + stats.skipped > 0
 
     # Verify any imported kanji has correct JLPT level
-    kanji_list = list_kanji(jlpt_level=level, db_path=clean_db)
+    kanji_list = list_all_kanji(jlpt_level=level, db_path=clean_db)
     for kanji in kanji_list:
         assert kanji['jlpt_level'] == level
 
@@ -303,11 +303,11 @@ def test_backward_compatibility_methods(clean_db, sample_xml_dir, jlpt_data_dir)
     assert stats.imported + stats.filtered + stats.skipped > 0
 
     # All imported items should be N5
-    vocab_list = list_vocabulary(db_path=clean_db)
+    vocab_list = list_all_vocabulary(db_path=clean_db)
     for vocab in vocab_list:
         assert vocab['jlpt_level'] == 'n5'
 
-    kanji_list = list_kanji(db_path=clean_db)
+    kanji_list = list_all_kanji(db_path=clean_db)
     for kanji in kanji_list:
         assert kanji['jlpt_level'] == 'n5'
 
@@ -336,8 +336,8 @@ def test_multiple_levels_in_same_database(clean_db, sample_xml_dir, jlpt_data_di
     )
 
     # Verify both levels exist in database
-    n5_vocab = list_vocabulary(jlpt_level="n5", db_path=clean_db)
-    n4_vocab = list_vocabulary(jlpt_level="n4", db_path=clean_db)
+    n5_vocab = list_all_vocabulary(jlpt_level="n5", db_path=clean_db)
+    n4_vocab = list_all_vocabulary(jlpt_level="n4", db_path=clean_db)
 
     # Should have separate entries for each level
     for vocab in n5_vocab:
