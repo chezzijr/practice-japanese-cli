@@ -411,3 +411,49 @@ class TestFlashcardCLIEdgeCases:
 
         # Should handle long data gracefully
         assert result.exit_code in [0, 1]
+
+
+class TestFlashcardMixedMode:
+    """Tests for mixed vocab+kanji mode (both)."""
+
+    def test_list_default_shows_both(self, cli_db_with_vocabulary_flashcard, cli_db_with_kanji_flashcard):
+        """Test that list without --type shows both vocab and kanji."""
+        result = runner.invoke(app, ["list", "--limit", "10"])
+
+        # Should succeed
+        assert result.exit_code == 0
+        # Should mention both vocabulary and kanji sections
+        assert "Vocabulary" in result.stdout or "Kanji" in result.stdout
+
+    def test_list_explicit_both(self, cli_db_with_vocabulary_flashcard):
+        """Test listing with explicit --type both."""
+        result = runner.invoke(app, ["list", "--type", "both", "--limit", "10"])
+
+        # Should succeed
+        assert result.exit_code == 0
+
+    def test_list_both_with_jlpt_filter(self, cli_db_with_vocabulary_flashcard):
+        """Test listing both types with JLPT filter."""
+        result = runner.invoke(app, ["list", "--type", "both", "--level", "n5"])
+
+        # Should succeed
+        assert result.exit_code == 0
+
+    def test_list_vocab_still_works(self, cli_db_with_vocabulary_flashcard):
+        """Test that --type vocab still works (not broken by new feature)."""
+        result = runner.invoke(app, ["list", "--type", "vocab", "--limit", "5"])
+
+        assert result.exit_code == 0
+
+    def test_list_kanji_still_works(self, cli_db_with_kanji_flashcard):
+        """Test that --type kanji still works (not broken by new feature)."""
+        result = runner.invoke(app, ["list", "--type", "kanji", "--limit", "5"])
+
+        assert result.exit_code == 0
+
+    def test_list_invalid_type_rejected(self):
+        """Test that invalid types are still rejected."""
+        result = runner.invoke(app, ["list", "--type", "grammar"])
+
+        assert result.exit_code == 1
+        assert "Invalid type" in result.stdout

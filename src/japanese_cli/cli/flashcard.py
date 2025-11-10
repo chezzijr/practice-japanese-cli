@@ -159,11 +159,11 @@ def _add_kanji():
 
 @app.command(name="list")
 def list_flashcards(
-    item_type: str = typer.Option(
-        "vocab",
+    item_type: Optional[str] = typer.Option(
+        None,
         "--type",
         "-t",
-        help="Type of flashcard (vocab or kanji)"
+        help="Type of flashcard (vocab, kanji, or both). Default is both."
     ),
     jlpt_level: Optional[str] = typer.Option(
         None,
@@ -187,15 +187,22 @@ def list_flashcards(
 
     Displays a Rich table of vocabulary or kanji with review status.
 
+    By default, lists both vocab and kanji together.
+
     Examples:
-        japanese-cli flashcard list --type vocab
+        japanese-cli flashcard list                            # Both vocab and kanji
+        japanese-cli flashcard list --type vocab               # Only vocab
         japanese-cli flashcard list --type kanji --level n5
-        japanese-cli flashcard list --type vocab --limit 20 --offset 20
+        japanese-cli flashcard list --limit 20 --offset 20
     """
     # Validate item type
-    if item_type not in ["vocab", "kanji"]:
-        console.print(f"[red]Error: Invalid type '{item_type}'. Use 'vocab' or 'kanji'.[/red]")
+    if item_type and item_type not in ["vocab", "kanji", "both"]:
+        console.print(f"[red]Error: Invalid type '{item_type}'. Use 'vocab', 'kanji', or 'both'.[/red]")
         raise typer.Exit(code=1)
+
+    # Map 'both' to None (triggers mixed mode)
+    if item_type == "both":
+        item_type = None
 
     # Validate JLPT level
     if jlpt_level and jlpt_level not in ["n5", "n4", "n3", "n2", "n1"]:
@@ -205,7 +212,13 @@ def list_flashcards(
     try:
         if item_type == "vocab":
             _list_vocabulary(jlpt_level, limit, offset)
+        elif item_type == "kanji":
+            _list_kanji(jlpt_level, limit, offset)
         else:
+            # Both mode - list vocabulary and kanji separately
+            console.print("\n[bold cyan]Vocabulary[/bold cyan]")
+            _list_vocabulary(jlpt_level, limit, offset)
+            console.print("\n[bold cyan]Kanji[/bold cyan]")
             _list_kanji(jlpt_level, limit, offset)
 
     except Exception as e:
@@ -524,7 +537,7 @@ def review_flashcards(
         None,
         "--type",
         "-t",
-        help="Filter by type (vocab or kanji)"
+        help="Filter by type (vocab, kanji, or both). Default is both."
     ),
 ):
     """
@@ -534,10 +547,14 @@ def review_flashcards(
     you'll see the meaning and try to recall the Japanese word, then rate
     how well you remembered it (1-4).
 
+    By default, reviews both vocab and kanji together (sorted by due date).
+
     Examples:
-        japanese-cli flashcard review
+        japanese-cli flashcard review                          # Both vocab and kanji
         japanese-cli flashcard review --limit 10 --level n5
-        japanese-cli flashcard review --type vocab
+        japanese-cli flashcard review --type vocab             # Only vocab
+        japanese-cli flashcard review --type kanji             # Only kanji
+        japanese-cli flashcard review --type both              # Explicit mixed mode
     """
     # Validate JLPT level
     if jlpt_level and jlpt_level not in ["n5", "n4", "n3", "n2", "n1"]:
@@ -545,9 +562,13 @@ def review_flashcards(
         raise typer.Exit(code=1)
 
     # Validate item type
-    if item_type and item_type not in ["vocab", "kanji"]:
-        console.print(f"[red]Error: Invalid type '{item_type}'. Use 'vocab' or 'kanji'.[/red]")
+    if item_type and item_type not in ["vocab", "kanji", "both"]:
+        console.print(f"[red]Error: Invalid type '{item_type}'. Use 'vocab', 'kanji', or 'both'.[/red]")
         raise typer.Exit(code=1)
+
+    # Map 'both' to None (triggers mixed mode in scheduler)
+    if item_type == "both":
+        item_type = None
 
     try:
         _run_review_session(limit, jlpt_level, item_type)
@@ -571,8 +592,11 @@ def _run_review_session(
 
     # Convert item_type to ItemType enum if needed
     item_type_enum = None
-    if item_type:
-        item_type_enum = ItemType.VOCAB if item_type == "vocab" else ItemType.KANJI
+    if item_type == "vocab":
+        item_type_enum = ItemType.VOCAB
+    elif item_type == "kanji":
+        item_type_enum = ItemType.KANJI
+    # else: item_type is None (both mode), leave item_type_enum as None
 
     # Get due reviews - with explicit flushing
     console.print("\n[bold cyan]Loading due cards...[/bold cyan]")
@@ -600,6 +624,8 @@ def _run_review_session(
         console.print(f"[dim]Level: {jlpt_level.upper()}[/dim]")
     if item_type:
         console.print(f"[dim]Type: {item_type.capitalize()}[/dim]")
+    else:
+        console.print(f"[dim]Type: Mixed (Vocab + Kanji)[/dim]")
 
     console.print("\n[dim]Press Ctrl+C at any time to quit (progress will be saved)[/dim]")
     console.print()

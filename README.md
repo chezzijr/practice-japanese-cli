@@ -33,9 +33,11 @@ A powerful command-line application for learning Japanese with intelligent space
 ### Current Features
 - **Flashcard System**: Add and review vocabulary and kanji with spaced repetition
   - FSRS (Free Spaced Repetition Scheduler) algorithm for optimal review timing
-  - Support for vocabulary and kanji with furigana display
+  - Mixed vocab and kanji reviews by default (sorted by due date for optimal learning)
+  - Can filter by type (vocab/kanji) or JLPT level as needed
   - Vietnamese and English translations
   - Sino-Vietnamese readings for kanji (Han Viet)
+  - Furigana display for easy reading
 
 - **MCQ (Multiple Choice) Review**: Alternative review mode with intelligent questions
   - Dynamic question generation with 4 distractor strategies
@@ -176,11 +178,15 @@ japanese-cli flashcard add --type vocab
 
 ### 4. Start Your First Review Session
 ```bash
-# Review due cards
+# Review due cards (both vocab and kanji by default)
 japanese-cli flashcard review
 
 # Review N5 level cards only
 japanese-cli flashcard review --level n5
+
+# Review only vocabulary or only kanji
+japanese-cli flashcard review --type vocab
+japanese-cli flashcard review --type kanji
 
 # Review with a limit
 japanese-cli flashcard review --limit 20

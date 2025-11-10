@@ -62,8 +62,9 @@ def format_vocabulary_table(
     # Rows
     for vocab in vocab_list:
         # Get Vietnamese meaning (first one if multiple)
+        # Fall back to Hán Việt reading if no Vietnamese meaning exists
         vi_meanings = vocab.meanings.get("vi", [])
-        vi_meaning = vi_meanings[0] if vi_meanings else ""
+        vi_meaning = vi_meanings[0] if vi_meanings else (vocab.vietnamese_reading or "")
 
         # Get JLPT level color
         jlpt_color = JLPT_COLORS.get(vocab.jlpt_level or "", "white")
@@ -135,8 +136,9 @@ def format_kanji_table(
     # Rows
     for kanji in kanji_list:
         # Get Vietnamese meaning (first one if multiple)
+        # Fall back to Hán Việt reading if no Vietnamese meaning exists
         vi_meanings = kanji.meanings.get("vi", [])
-        vi_meaning = vi_meanings[0] if vi_meanings else ""
+        vi_meaning = vi_meanings[0] if vi_meanings else (kanji.vietnamese_reading or "")
 
         # Get JLPT level color
         jlpt_color = JLPT_COLORS.get(kanji.jlpt_level or "", "white")
@@ -387,11 +389,16 @@ def display_card_question(
     content_lines.append("")
 
     # Vietnamese meaning (primary)
+    # Fall back to Hán Việt reading if no Vietnamese meaning exists
     vi_meanings = item.meanings.get("vi", [])
     if vi_meanings:
         content_lines.append("[bold green]Vietnamese:[/bold green]")
         for meaning in vi_meanings:
             content_lines.append(f"  [green]{meaning}[/green]")
+        content_lines.append("")
+    elif hasattr(item, 'vietnamese_reading') and item.vietnamese_reading:
+        content_lines.append("[bold green]Vietnamese (Hán Việt):[/bold green]")
+        content_lines.append(f"  [green]{item.vietnamese_reading}[/green]")
         content_lines.append("")
 
     # English meaning (secondary)
@@ -494,13 +501,19 @@ def display_card_answer(
 
     # Meanings
     content_lines.append("[bold]Meanings:[/bold]")
+    has_vi_meaning = False
     for lang, meanings_list in item.meanings.items():
         lang_display = lang.upper()
         for meaning in meanings_list:
             if lang == "vi":
+                has_vi_meaning = True
                 content_lines.append(f"  [{lang_display}] [green]{meaning}[/green]")
             else:
                 content_lines.append(f"  [{lang_display}] [dim]{meaning}[/dim]")
+
+    # Fall back to Hán Việt reading if no Vietnamese meaning exists
+    if not has_vi_meaning and hasattr(item, 'vietnamese_reading') and item.vietnamese_reading:
+        content_lines.append(f"  [VI (Hán Việt)] [green]{item.vietnamese_reading}[/green]")
 
     # Create panel
     icon = "📚" if item_type == "vocab" else "㊙️"

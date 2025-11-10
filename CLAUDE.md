@@ -701,14 +701,23 @@ japanese-cli flashcard add --type vocab
 # Add kanji manually
 japanese-cli flashcard add --type kanji
 
+# List flashcards (both vocab and kanji by default)
+japanese-cli flashcard list
+japanese-cli flashcard list --type vocab --level n5
+japanese-cli flashcard list --type kanji --limit 20
+
 # Import N5 data (both vocab and kanji)
 japanese-cli import n5 --vocab --kanji
 
-# Review due cards
+# Review due cards (both vocab and kanji by default)
 japanese-cli flashcard review
 
 # Review specific level
 japanese-cli flashcard review --level n5 --limit 20
+
+# Review only vocab or only kanji
+japanese-cli flashcard review --type vocab
+japanese-cli flashcard review --type kanji
 
 # MCQ (Multiple Choice Question) review
 japanese-cli mcq --type vocab --limit 10
